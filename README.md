@@ -41,3 +41,7 @@ node tools/check.mjs     # verse counts, text fidelity, transliteration, artifac
 ```
 
 `src/template.html` is the page; `build.py` parses the sources into sections and verses and embeds them. `build/artifact.html` is the same page without the document skeleton, for publishing as a claude.ai artifact.
+
+## License
+
+Code is under the [MIT License](LICENSE). The Vishnu Sahasranama and Hanuman Chalisa texts are traditional public-domain works, transcribed by sanskritdocuments.org (https://sanskritdocuments.org) and credited in the app. 
