@@ -1,0 +1,1184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--HEAD-->
+<title>Stotra Reader</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Vishnu Sahasranama and Hanuman Chalisa in Devanagari and IAST, with a one-verse-at-a-time recite mode and a mala counter.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gentium+Book+Plus:ital,wght@0,400;0,700;1,400&family=Hind:wght@400;500;600&family=Tiro+Devanagari+Hindi&family=Tiro+Devanagari+Sanskrit&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gentium+Book+Plus:ital,wght@0,400;1,400&text=mr%CC%90%CC%A5&display=swap">
+<style>
+/* Layout: one narrow reading column like a pothi leaf; a slim bilingual tab bar on top, a floating dock at the thumb, and a full-screen recite card. */
+:root {
+	--paper: #faf4e8;
+	--surface: #f3e7d2;
+	--ink: #2a1c10;
+	--ink-2: #6d5643;
+	--accent: #ad4f0b;
+	--accent-ink: #fff8ee;
+	--wash: #f5dfc0;
+	--rule: #e6d5b9;
+	--glow: rgba(236, 140, 48, 0.20);
+	--shadow: rgba(84, 46, 10, 0.14);
+	--scrim: rgba(42, 28, 16, 0.32);
+	--bead: #dcc6a0;
+
+	--f-sa: "Tiro Devanagari Sanskrit", "Noto Serif Devanagari", "Kohinoor Devanagari", "Devanagari Sangam MN", "Mangal", serif;
+	--f-hi: "Tiro Devanagari Hindi", "Tiro Devanagari Sanskrit", "Noto Serif Devanagari", "Kohinoor Devanagari", "Devanagari Sangam MN", "Mangal", serif;
+	--f-lat: "Gentium Book Plus", "Noto Serif", "Charis SIL", Georgia, serif;
+	--f-ui: "Hind", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+	--scale: 1;
+	--hdr: 58px;
+	color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--paper: #0d111e;
+		--surface: #171c2d;
+		--ink: #eee3cd;
+		--ink-2: #a79d8b;
+		--accent: #f0a24a;
+		--accent-ink: #1b1206;
+		--wash: #2b2433;
+		--rule: #262c40;
+		--glow: rgba(240, 162, 74, 0.11);
+		--shadow: rgba(0, 0, 0, 0.45);
+		--scrim: rgba(3, 5, 12, 0.6);
+		--bead: #394058;
+		color-scheme: dark;
+	}
+}
+:root[data-theme="dark"] {
+	--paper: #0d111e;
+	--surface: #171c2d;
+	--ink: #eee3cd;
+	--ink-2: #a79d8b;
+	--accent: #f0a24a;
+	--accent-ink: #1b1206;
+	--wash: #2b2433;
+	--rule: #262c40;
+	--glow: rgba(240, 162, 74, 0.11);
+	--shadow: rgba(0, 0, 0, 0.45);
+	--scrim: rgba(3, 5, 12, 0.6);
+	--bead: #394058;
+	color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html {
+	padding-top: env(safe-area-inset-top, 0px);
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
+	background: var(--paper);
+}
+html.locked, html.locked body { overflow: hidden; }
+body {
+	margin: 0;
+	min-height: 100vh;
+	background: var(--paper);
+	background-image: radial-gradient(130% 520px at 50% -140px, var(--glow), transparent 70%);
+	background-repeat: no-repeat;
+	color: var(--ink);
+	font-family: var(--f-ui);
+	font-size: 16px;
+	line-height: 1.5;
+	-webkit-tap-highlight-color: transparent;
+	overflow-x: hidden;
+}
+button { font: inherit; color: inherit; }
+a { color: var(--accent); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+[hidden] { display: none !important; }
+
+/* ---------- top bar ---------- */
+.topbar {
+	position: sticky;
+	top: env(safe-area-inset-top, 0px);
+	z-index: 20;
+	background: color-mix(in srgb, var(--paper) 90%, transparent);
+	-webkit-backdrop-filter: saturate(1.4) blur(14px);
+	backdrop-filter: saturate(1.4) blur(14px);
+	border-bottom: 1px solid transparent;
+	transition: border-color .2s;
+}
+.topbar::before {
+	content: "";
+	position: absolute;
+	left: 0; right: 0; bottom: 100%;
+	height: env(safe-area-inset-top, 0px);
+	background: var(--paper);
+}
+.topbar.scrolled { border-bottom-color: var(--rule); }
+.tabs {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 4px;
+	max-width: 40rem;
+	margin: 0 auto;
+	padding: 6px 16px;
+}
+.tab {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	border-radius: 12px;
+	min-height: 46px;
+	padding: 4px 8px;
+	display: grid;
+	place-items: center;
+	align-content: center;
+	gap: 0;
+	cursor: pointer;
+	color: var(--ink-2);
+	transition: background .2s, color .2s;
+}
+.tab .t-dev { font-family: var(--f-sa); font-size: 1.02rem; line-height: 1.25; }
+.tab .t-en { font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; line-height: 1.2; }
+.tab[aria-selected="true"] { background: var(--wash); color: var(--ink); }
+.tab[aria-selected="true"] .t-en { color: var(--accent); font-weight: 600; }
+
+/* ---------- reading column ---------- */
+.wrap {
+	max-width: 40rem;
+	margin: 0 auto;
+	padding-inline: 16px;
+	padding-block: 0 9rem;
+}
+.hero { padding-block: 2.4rem 1rem; }
+.hero .meta {
+	margin: 0 0 .9rem;
+	font-size: .74rem;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: var(--accent);
+	font-weight: 600;
+}
+.hero h1 {
+	margin: 0;
+	font-family: var(--f-sa);
+	font-weight: 400;
+	font-size: clamp(2rem, 8.4vw, 3.1rem);
+	line-height: 1.3;
+	text-wrap: balance;
+	overflow-wrap: anywhere;
+}
+.text[data-id="hc"] .hero h1 { font-family: var(--f-hi); }
+.hero .h-lat {
+	margin: .35rem 0 0;
+	font-family: var(--f-lat);
+	font-style: italic;
+	font-size: 1.15rem;
+	color: var(--ink-2);
+}
+.toc {
+	margin: 1.8rem 0 0;
+	padding: 0;
+	list-style: none;
+	border-top: 1px solid var(--rule);
+}
+.toc li { border-bottom: 1px solid var(--rule); }
+.toc a {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: baseline;
+	gap: .2rem 1rem;
+	padding: .7rem .1rem;
+	min-height: 48px;
+	text-decoration: none;
+	color: var(--ink);
+}
+.toc .c-name { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .6rem; }
+.toc .c-dev { font-family: var(--f-sa); font-size: 1.12rem; }
+.text[data-id="hc"] .toc .c-dev { font-family: var(--f-hi); }
+.toc .c-gloss { font-size: .86rem; color: var(--ink-2); }
+.toc .c-count { font-size: .8rem; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.toc a:hover .c-dev { color: var(--accent); }
+
+.sec { padding-top: 2.6rem; }
+.sec-head {
+	display: grid;
+	gap: .15rem;
+	padding-bottom: .9rem;
+	margin-bottom: .6rem;
+	border-bottom: 1px solid var(--rule);
+	scroll-margin-top: calc(var(--hdr) + env(safe-area-inset-top, 0px) + 8px);
+}
+.sec-head .eyebrow {
+	font-size: .72rem;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: var(--accent);
+	font-weight: 600;
+}
+.sec-head h2 {
+	margin: 0;
+	font-weight: 400;
+	font-family: var(--f-sa);
+	font-size: 1.7rem;
+	line-height: 1.35;
+	text-wrap: balance;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: .1rem .7rem;
+}
+.text[data-id="hc"] .sec-head h2 { font-family: var(--f-hi); }
+.sec-head h2 .s-lat { font-family: var(--f-lat); font-style: italic; font-size: 1.05rem; color: var(--ink-2); }
+.sec-head h2 .s-lat:only-child { font-style: normal; font-size: 1.5rem; color: var(--ink); }
+
+.unit {
+	display: grid;
+	grid-template-columns: 2rem minmax(0, 1fr);
+	gap: .55rem;
+	padding-block: .85rem;
+	border-radius: 10px;
+	scroll-margin-top: calc(var(--hdr) + env(safe-area-inset-top, 0px) + 10px);
+	transition: background-color 1.2s ease;
+}
+.unit.flash { background-color: var(--wash); transition: none; }
+.gut {
+	font-size: .76rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--accent);
+	text-align: right;
+	padding-top: calc(.62rem * var(--scale));
+	font-weight: 500;
+	opacity: .9;
+}
+.ubody { min-width: 0; }
+.label {
+	margin: 0 0 .25rem;
+	font-size: calc(.98rem * var(--scale));
+	color: var(--accent);
+	font-family: var(--f-sa);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 .6rem;
+}
+.label .lat { font-family: var(--f-lat); font-style: italic; font-size: .92em; }
+.dev { font-family: var(--f-sa); }
+.text[data-id="hc"] .dev, .rc-hindi .dev { font-family: var(--f-hi); }
+.lat { font-family: var(--f-lat); }
+.ubody .dev .ln {
+	display: block;
+	font-size: calc(1.32rem * var(--scale));
+	line-height: 1.72;
+	padding-left: 1.1em;
+	text-indent: -1.1em;
+}
+.ubody .lat .ln {
+	display: block;
+	font-size: calc(1.08rem * var(--scale));
+	line-height: 1.62;
+	padding-left: 1.1em;
+	text-indent: -1.1em;
+	overflow-wrap: anywhere;
+}
+.num { color: var(--accent); white-space: nowrap; }
+.dnd { color: var(--ink-2); }
+.var { color: var(--ink-2); font-size: .82em; }
+.unit.alt .ubody { color: var(--ink-2); }
+
+/* script modes */
+body[data-script="dev"] .lat { display: none; }
+body[data-script="lat"] .dev { display: none; }
+body[data-script="lat"] .label .lat { display: inline; }
+body[data-script="both"] .ubody .lat { margin-top: .3rem; color: var(--ink-2); }
+body[data-script="both"] .ubody .lat .ln { font-size: calc(1rem * var(--scale)); }
+body[data-script="both"] .label .lat { color: var(--ink-2); }
+
+.colophon {
+	margin-top: 3.2rem;
+	padding-top: 1.2rem;
+	border-top: 1px solid var(--rule);
+	font-size: .88rem;
+	color: var(--ink-2);
+	display: grid;
+	gap: .55rem;
+}
+.colophon p { margin: 0; }
+.colophon .end-mark { font-family: var(--f-sa); font-size: 1.3rem; color: var(--accent); text-align: center; margin-bottom: .6rem; }
+
+/* ---------- dock ---------- */
+.dock {
+	position: fixed;
+	left: 50%;
+	bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+	transform: translateX(-50%);
+	z-index: 30;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 5px;
+	border-radius: 999px;
+	background: var(--surface);
+	border: 1px solid var(--rule);
+	box-shadow: 0 10px 30px -8px var(--shadow), 0 2px 6px -2px var(--shadow);
+	max-width: calc(100vw - 32px);
+}
+.dbtn {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	min-width: 46px;
+	height: 46px;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: .4rem;
+	padding: 0 .7rem;
+	cursor: pointer;
+	color: var(--ink);
+	font-size: .9rem;
+	font-weight: 500;
+	white-space: nowrap;
+}
+.dbtn:hover { background: var(--wash); }
+.dbtn svg { width: 20px; height: 20px; flex: none; }
+.dbtn.script { min-width: 6.4rem; }
+.dbtn.script .sc-dev { font-family: var(--f-sa); font-size: 1rem; }
+.dbtn.primary { background: var(--accent); color: var(--accent-ink); padding: 0 1.05rem 0 .9rem; font-weight: 600; }
+.dbtn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--ink)); }
+
+/* ---------- sheets ---------- */
+.scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 40; }
+.sheet {
+	position: fixed;
+	left: 0; right: 0; bottom: 0;
+	z-index: 41;
+	margin: 0 auto;
+	max-width: 30rem;
+	max-height: 82vh;
+	overflow-y: auto;
+	background: var(--surface);
+	border: 1px solid var(--rule);
+	border-bottom: 0;
+	border-radius: 22px 22px 0 0;
+	padding: .6rem 20px calc(1.4rem + env(safe-area-inset-bottom, 0px));
+	box-shadow: 0 -18px 40px -16px var(--shadow);
+}
+.sheet .grab { width: 38px; height: 4px; border-radius: 4px; background: var(--rule); margin: 0 auto .8rem; }
+.sheet h3 { margin: 0 0 .8rem; font-size: 1.05rem; font-weight: 600; }
+.field { display: grid; gap: .45rem; margin-bottom: 1.15rem; }
+.field > span { font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
+.seg {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 1fr;
+	gap: 3px;
+	padding: 3px;
+	border-radius: 14px;
+	background: var(--paper);
+	border: 1px solid var(--rule);
+}
+.seg button {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	min-height: 42px;
+	border-radius: 11px;
+	cursor: pointer;
+	font-size: .95rem;
+	color: var(--ink-2);
+}
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.seg .sc-dev { font-family: var(--f-sa); font-size: 1.02rem; }
+.sizer { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .6rem; }
+.sizer button {
+	appearance: none;
+	width: 48px; height: 44px;
+	border-radius: 12px;
+	border: 1px solid var(--rule);
+	background: var(--paper);
+	cursor: pointer;
+	font-family: var(--f-lat);
+}
+.sizer button:disabled { opacity: .4; cursor: default; }
+.sizer .s-small { font-size: .95rem; }
+.sizer .s-big { font-size: 1.3rem; }
+.sizer output { text-align: center; font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: .95rem; }
+.sec-list { list-style: none; margin: 0; padding: 0; }
+.sec-list li + li { border-top: 1px solid var(--rule); }
+.sec-list button {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	width: 100%;
+	text-align: left;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: baseline;
+	gap: 1rem;
+	min-height: 52px;
+	padding: .6rem .2rem;
+	cursor: pointer;
+}
+.sec-list .c-dev { font-family: var(--f-sa); font-size: 1.1rem; margin-right: .5rem; }
+.sec-list .c-gloss { color: var(--ink-2); font-size: .86rem; }
+.sec-list .c-count { color: var(--ink-2); font-size: .8rem; font-variant-numeric: tabular-nums; }
+
+/* ---------- recite ---------- */
+.recite {
+	position: fixed;
+	inset: 0;
+	z-index: 60;
+	background: var(--paper);
+	background-image: radial-gradient(120% 60% at 50% 115%, var(--glow), transparent 70%);
+	display: grid;
+	grid-template-rows: auto auto minmax(0, 1fr) auto;
+	padding:
+		calc(env(safe-area-inset-top, 0px) + 8px)
+		max(16px, env(safe-area-inset-right, 0px))
+		calc(env(safe-area-inset-bottom, 0px) + 14px)
+		max(16px, env(safe-area-inset-left, 0px));
+}
+.rc-top { display: grid; grid-template-columns: 46px minmax(0, 1fr) 46px; align-items: center; gap: .5rem; max-width: 46rem; width: 100%; margin: 0 auto; }
+.icon-btn {
+	appearance: none;
+	width: 46px; height: 46px;
+	border-radius: 999px;
+	border: 1px solid var(--rule);
+	background: var(--surface);
+	display: inline-grid;
+	place-items: center;
+	cursor: pointer;
+	color: var(--ink);
+}
+.icon-btn svg { width: 20px; height: 20px; }
+.icon-btn.sc { font-family: var(--f-sa); font-size: .95rem; }
+.rc-where { text-align: center; min-width: 0; }
+.rc-sec { font-size: .74rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-pos { font-size: .82rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rc-bar { height: 3px; border-radius: 3px; background: var(--rule); margin: .7rem auto 0; max-width: 46rem; width: 100%; overflow: hidden; }
+.rc-bar > i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .25s ease; }
+.rc-stage {
+	min-height: 0;
+	overflow-y: auto;
+	display: grid;
+	align-items: center;
+	justify-items: center;
+	padding: 1.2rem 0;
+	touch-action: pan-y;
+	outline: none;
+}
+.rc-card { max-width: 40rem; width: 100%; text-align: center; transition: opacity .18s ease, transform .18s ease; }
+.rc-card.out-l { opacity: 0; transform: translateX(-18px); }
+.rc-card.out-r { opacity: 0; transform: translateX(18px); }
+.rc-card .label { justify-content: center; font-size: calc(1.05rem * var(--scale)); margin-bottom: .7rem; }
+.rc-card .dev .ln { display: block; font-size: calc(min(2rem, 6vw) * var(--scale)); line-height: 1.75; text-wrap: balance; }
+.rc-card .lat .ln { display: block; font-size: calc(min(1.3rem, 4.6vw) * var(--scale)); line-height: 1.55; text-wrap: balance; overflow-wrap: anywhere; }
+.rc-card.long .dev .ln { font-size: calc(min(1.45rem, 5.2vw) * var(--scale)); }
+.rc-card.long .lat .ln { font-size: calc(min(1.08rem, 4vw) * var(--scale)); }
+.rc-card.vlong .dev .ln { font-size: calc(min(1.15rem, 4.4vw) * var(--scale)); line-height: 1.65; }
+.rc-card.vlong .lat .ln { font-size: calc(min(.96rem, 3.7vw) * var(--scale)); }
+body[data-script="both"] .rc-card .lat { margin-top: .9rem; color: var(--ink-2); }
+.rc-card.alt { color: var(--ink-2); }
+.rc-nav {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	align-items: center;
+	gap: .8rem;
+	max-width: 30rem;
+	width: 100%;
+	margin: 0 auto;
+}
+.rc-nav .step {
+	appearance: none;
+	justify-self: center;
+	width: 58px; height: 58px;
+	border-radius: 999px;
+	border: 1px solid var(--rule);
+	background: var(--surface);
+	display: grid;
+	place-items: center;
+	cursor: pointer;
+	color: var(--ink);
+}
+.rc-nav .step svg { width: 24px; height: 24px; }
+.rc-nav .step:disabled { opacity: .35; cursor: default; }
+.mala { display: grid; justify-items: center; gap: .3rem; }
+.mala-btn {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	padding: 0;
+	width: 132px; height: 132px;
+	border-radius: 999px;
+	position: relative;
+	cursor: pointer;
+	touch-action: manipulation;
+	color: var(--ink);
+}
+.mala-btn svg { width: 100%; height: 100%; display: block; }
+.mala-btn .bead { fill: var(--bead); transition: fill .15s; }
+.mala-btn .bead.on { fill: var(--accent); }
+.mala-btn .meru { fill: var(--accent); }
+.mala-btn .core { fill: var(--surface); stroke: var(--rule); }
+.mala-btn:active .core { fill: var(--wash); }
+.mala-num {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-content: center;
+	text-align: center;
+	pointer-events: none;
+}
+.mala-num b { font-size: 2rem; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+.mala-num small { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin-top: .25rem; }
+.mala-btn.done .core { fill: var(--wash); }
+.mala-meta { display: flex; align-items: center; gap: .4rem; font-size: .82rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.linkish {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	color: var(--accent);
+	font-size: .82rem;
+	padding: .5rem .4rem;
+	min-height: 36px;
+	cursor: pointer;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+.linkish.confirm { font-weight: 600; }
+.kbd-hint { text-align: center; font-size: .74rem; color: var(--ink-2); margin-top: .5rem; }
+@media (hover: none) { .kbd-hint { display: none; } }
+@media (max-height: 640px) {
+	.mala-btn { width: 108px; height: 108px; }
+	.mala-num b { font-size: 1.6rem; }
+	.rc-nav .step { width: 52px; height: 52px; }
+}
+@media (min-width: 720px) {
+	.unit { grid-template-columns: 2.6rem minmax(0, 1fr); gap: .9rem; }
+	.hero { padding-block: 3.6rem 1.2rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after { transition: none !important; animation: none !important; }
+	html { scroll-behavior: auto !important; }
+}
+</style>
+<!--/HEAD-->
+</head>
+<body>
+<!--BODY-->
+<header class="topbar" id="topbar">
+	<div class="tabs" role="tablist" aria-label="Choose a text">
+		<button class="tab" role="tab" id="tab-vs" data-text="vs" aria-selected="true" aria-controls="text-vs">
+			<span class="t-dev" lang="sa">विष्णुसहस्रनाम</span>
+			<span class="t-en">Vishnu Sahasranama</span>
+		</button>
+		<button class="tab" role="tab" id="tab-hc" data-text="hc" aria-selected="false" aria-controls="text-hc">
+			<span class="t-dev" lang="hi">हनुमान चालीसा</span>
+			<span class="t-en">Hanuman Chalisa</span>
+		</button>
+	</div>
+</header>
+
+<main class="wrap" id="main">
+	<section class="text" id="text-vs" data-id="vs" role="tabpanel" aria-labelledby="tab-vs"></section>
+	<section class="text" id="text-hc" data-id="hc" role="tabpanel" aria-labelledby="tab-hc" hidden></section>
+</main>
+
+<nav class="dock" aria-label="Reading controls">
+	<button class="dbtn" id="btn-sections" aria-label="Sections" title="Sections">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h9"/></svg>
+	</button>
+	<button class="dbtn script" id="btn-script" aria-label="Change script" title="Script: Devanagari, IAST, or both"></button>
+	<button class="dbtn" id="btn-display" aria-label="Text size and theme" title="Text size and theme">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19 8.5 5h1L15 19M5 14.5h8"/><path d="M15.5 19l3-7.5h.6l3 7.5M16.6 16.4h4.6"/></svg>
+	</button>
+	<button class="dbtn primary" id="btn-recite">
+		<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8c0 .8.9 1.3 1.6.8l9.4-6.4a1 1 0 0 0 0-1.6L9.6 4.8C8.9 4.3 8 4.8 8 5.6Z"/></svg>
+		Recite
+	</button>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<section class="sheet" id="sheet-display" role="dialog" aria-modal="true" aria-labelledby="sd-title" hidden>
+	<div class="grab"></div>
+	<h3 id="sd-title">Display</h3>
+	<div class="field">
+		<span id="lbl-script">Script</span>
+		<div class="seg" role="group" aria-labelledby="lbl-script" id="seg-script">
+			<button data-v="dev" id="opt-dev"><span class="sc-dev" lang="sa">देवनागरी</span></button>
+			<button data-v="lat" id="opt-lat">IAST</button>
+			<button data-v="both" id="opt-both">Both</button>
+		</div>
+	</div>
+	<div class="field">
+		<span id="lbl-size">Text size</span>
+		<div class="sizer" role="group" aria-labelledby="lbl-size">
+			<button id="size-down" aria-label="Smaller text"><span class="s-small">A</span>−</button>
+			<output id="size-val" aria-live="polite">100%</output>
+			<button id="size-up" aria-label="Larger text"><span class="s-big">A</span>+</button>
+		</div>
+	</div>
+	<div class="field">
+		<span id="lbl-theme">Theme</span>
+		<div class="seg" role="group" aria-labelledby="lbl-theme" id="seg-theme">
+			<button data-v="auto" id="opt-auto">Auto</button>
+			<button data-v="light" id="opt-light">Light</button>
+			<button data-v="dark" id="opt-dark">Dark</button>
+		</div>
+	</div>
+</section>
+
+<section class="sheet" id="sheet-sections" role="dialog" aria-modal="true" aria-labelledby="ss-title" hidden>
+	<div class="grab"></div>
+	<h3 id="ss-title">Sections</h3>
+	<ul class="sec-list" id="sec-list"></ul>
+</section>
+
+<section class="recite" id="recite" role="dialog" aria-modal="true" aria-label="Recite" hidden>
+	<div class="rc-top">
+		<button class="icon-btn" id="rc-close" aria-label="Close recite mode">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+		</button>
+		<div class="rc-where">
+			<div class="rc-sec" id="rc-sec"></div>
+			<div class="rc-pos" id="rc-pos"></div>
+		</div>
+		<button class="icon-btn sc" id="rc-script" aria-label="Change script"></button>
+	</div>
+	<div class="rc-bar" aria-hidden="true"><i id="rc-bar"></i></div>
+	<div class="rc-stage" id="rc-stage" tabindex="-1">
+		<div class="rc-card" id="rc-card" aria-live="polite"></div>
+	</div>
+	<div>
+		<div class="rc-nav">
+			<button class="step" id="rc-prev" aria-label="Previous verse">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+			</button>
+			<div class="mala">
+				<button class="mala-btn" id="mala" aria-label="Count one repetition">
+					<svg viewBox="0 0 132 132" aria-hidden="true" id="mala-svg"></svg>
+					<span class="mala-num"><b id="mala-n">0</b><small>of 108</small></span>
+				</button>
+				<div class="mala-meta"><span id="mala-rounds">0 malas</span><button class="linkish" id="mala-reset">Reset</button></div>
+			</div>
+			<button class="step" id="rc-next" aria-label="Next verse">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+			</button>
+		</div>
+		<p class="kbd-hint">← → to move · Space to count · Esc to close</p>
+	</div>
+</section>
+
+<script>
+"use strict";
+const DATA = {"vs":{"id":"vs","short":"Vishnu Sahasranama","dev":"श्रीविष्णुसहस्रनामस्तोत्रम्","lat":"Śrī Viṣṇu Sahasranāma Stotram","meta":"Mahābhārata, Anuśāsana Parva, Adhyāya 149","hindi":false,"source":"https://sanskritdocuments.org/doc_vishhnu/vsahasranew.html","pdf":"https://sanskritdocuments.org/doc_vishhnu/vsahasranew.pdf","sections":[{"id":"purva","dev":"पूर्वपीठिका","lat":null,"gloss":"Opening","units":[{"lines":["ॐ","श्रीपरमात्मने नमः ।"]},{"lines":["नारायणं नमस्कृत्य नरं चैव नरोत्तमम् ।","देवीं सरस्वतीं व्यासं ततो जयमुदीरयेत् ॥"]},{"lines":["ॐ अथ सकलसौभाग्यदायकं श्रीविष्णुसहस्रनामस्तोत्रम् ।","हरिः ॐ ॥"]},{"lines":["शुक्लाम्बरधरं विष्णुं शशिवर्णं चतुर्भुजम् ।","प्रसन्नवदनं ध्यायेत् सर्वविघ्नोपशान्तये ॥ १॥"],"n":1},{"lines":["यस्य द्विरदवक्त्राद्याः पारिषद्याः परः शतम् ।","विघ्नं निघ्नन्ति सततं विष्वक्सेनं तमाश्रये ॥ २॥"],"n":2},{"lines":["व्यासं वसिष्ठनप्तारं शक्तेः पौत्रमकल्मषम् ।","पराशरात्मजं वन्दे शुकतातं तपोनिधिम् ॥ ३॥"],"n":3},{"lines":["व्यासाय विष्णुरूपाय व्यासरूपाय विष्णवे ।","नमो वै ब्रह्मनिधये वासिष्ठाय नमो नमः ॥ ४॥"],"n":4},{"lines":["अविकाराय शुद्धाय नित्याय परमात्मने ।","सदैकरूपरूपाय विष्णवे सर्वजिष्णवे ॥ ५॥"],"n":5},{"lines":["यस्य स्मरणमात्रेण जन्मसंसारबन्धनात् ।","विमुच्यते नमस्तस्मै विष्णवे प्रभविष्णवे ॥ ६॥"],"n":6},{"lines":["(नमः समस्तभूतानामादिभूताय भूभृते ।","अनेकरूपरूपाय विष्णवे प्रभविष्णवे ॥)"],"alt":true},{"lines":["ॐ नमो विष्णवे प्रभविष्णवे ॥"]},{"lines":["श्रुत्वा धर्मानशेषेण पावनानि च सर्वशः ।","युधिष्ठिरः शान्तनवं पुनरेवाभ्यभाषत ॥ ७॥"],"n":7,"label":"श्रीवैशम्पायन उवाच"},{"lines":["किमेकं दैवतं लोके किं वाप्येकं परायणम् ।","स्तुवन्तः कं कमर्चन्तः प्राप्नुयुर्मानवाः शुभम् ॥ ८॥"],"n":8,"label":"युधिष्ठिर उवाच"},{"lines":["को धर्मः सर्वधर्माणां भवतः परमो मतः ।","किं जपन्मुच्यते जन्तुर्जन्मसंसारबन्धनात् ॥ ९॥"],"n":9},{"lines":["जगत्प्रभुं देवदेवमनन्तं पुरुषोत्तमम् ।","स्तुवन् नामसहस्रेण पुरुषः सततोत्थितः ॥ १०॥"],"n":10,"label":"भीष्म उवाच"},{"lines":["तमेव चार्चयन्नित्यं  भक्त्या पुरुषमव्ययम् ।","ध्यायन् स्तुवन् नमस्यंश्च यजमानस्तमेव च ॥ ११॥"],"n":11},{"lines":["अनादिनिधनं विष्णुं सर्वलोकमहेश्वरम् ।","लोकाध्यक्षं स्तुवन्नित्यं सर्वदुःखातिगो भवेत् ॥ १२॥"],"n":12},{"lines":["ब्रह्मण्यं सर्वधर्मज्ञं लोकानां कीर्तिवर्धनम् ।","लोकनाथं महद्भूतं सर्वभूतभवोद्भवम् ॥ १३॥"],"n":13},{"lines":["एष मे सर्वधर्माणां धर्मोऽधिकतमो मतः ।","यद्भक्त्या पुण्डरीकाक्षं स्तवैरर्चेन्नरः सदा ॥ १४॥"],"n":14},{"lines":["परमं यो महत्तेजः परमं यो महत्तपः ।","परमं यो महद्ब्रह्म परमं यः परायणम् ॥ १५॥"],"n":15},{"lines":["पवित्राणां पवित्रं यो मङ्गलानां च मङ्गलम् ।","दैवतं देवतानां च भूतानां योऽव्ययः पिता ॥ १६॥"],"n":16},{"lines":["यतः सर्वाणि भूतानि भवन्त्यादियुगागमे ।","यस्मिंश्च प्रलयं यान्ति पुनरेव युगक्षये ॥ १७॥"],"n":17},{"lines":["तस्य लोकप्रधानस्य जगन्नाथस्य भूपते ।","विष्णोर्नामसहस्रं मे श‍ृणु पापभयापहम् ॥ १८॥"],"n":18},{"lines":["यानि नामानि गौणानि विख्यातानि महात्मनः ।","ऋषिभिः परिगीतानि तानि वक्ष्यामि भूतये ॥ १९॥"],"n":19},{"lines":["ऋषिर्नाम्नां सहस्रस्य वेदव्यासो महामुनिः ।","छन्दोऽनुष्टुप् तथा देवो भगवान् देवकीसुतः ॥ २०॥"],"n":20},{"lines":["अमृतांशूद्भवो बीजं शक्तिर्देवकीनन्दनः ।","त्रिसामा हृदयं तस्य शान्त्यर्थे विनियुज्यते ॥ २१॥"],"n":21},{"lines":["विष्णुं जिष्णुं महाविष्णुं प्रभविष्णुं महेश्वरम् ।","अनेकरूपदैत्यान्तं नमामि पुरुषोत्तमम् ॥ २२॥"],"n":22}]},{"id":"nyasa","dev":"पूर्वन्यासः","lat":null,"gloss":"Invocation and nyāsa","units":[{"lines":["ॐ अस्य श्रीविष्णोर्दिव्यसहस्रनामस्तोत्रमहामन्त्रस्य ।","श्रीवेदव्यासो भगवान् ऋषिः ।","अनुष्टुप् छन्दः ।","श्रीमहाविष्णुः परमात्मा श्रीमन्नारायणो देवता ।","अमृतांशूद्भवो भानुरिति बीजम् ।","देवकीनन्दनः स्रष्टेति शक्तिः ।","उद्भवः क्षोभणो देव इति परमो मन्त्रः ।","शङ्खभृन्नन्दकी चक्रीति कीलकम् ।","शार्ङ्गधन्वा गदाधर इत्यस्त्रम् ।","रथाङ्गपाणिरक्षोभ्य इति नेत्रम् ।","त्रिसामा सामगः सामेति कवचम् ।","आनन्दं परब्रह्मेति योनिः ।","ऋतुः सुदर्शनः काल इति दिग्बन्धः ।","श्रीविश्वरूप इति ध्यानम् ।","श्रीमहाविष्णुप्रीत्यर्थे सहस्रनामस्तोत्रपाठे विनियोगः ॥"],"label":"श्रीवेदव्यास उवाच"},{"lines":["ॐ शिरसि वेदव्यासर्षये नमः ।","मुखे अनुष्टुप्छन्दसे नमः ।","हृदि श्रीकृष्णपरमात्मदेवतायै नमः ।","गुह्ये अमृतांशूद्भवो भानुरिति बीजाय नमः ।","पादयोर्देवकीनन्दनः स्रष्टेति शक्तये नमः ।","सर्वाङ्गे शङ्खभृन्नन्दकी चक्रीति कीलकाय नमः ।","करसम्पूटे मम श्रीकृष्णप्रीत्यर्थे जपे विनियोगः ॥"],"label":"अथ न्यासः ।"},{"lines":["इति ऋष्यादिन्यासः ॥"]},{"lines":["ॐ विश्वं विष्णुर्वषट्कार इत्यङ्गुष्ठाभ्यां नमः ।","अमृतांशूद्भवो भानुरिति तर्जनीभ्यां नमः ।","ब्रह्मण्यो ब्रह्मकृद्ब्रह्मेति मध्यमाभ्यां नमः ।","सुवर्णबिन्दुरक्षोभ्य इत्यनामिकाभ्यां नमः ।","निमिषोऽनिमिषः स्रग्वीति कनिष्ठिकाभ्यां नमः ।","रथाङ्गपाणिरक्षोभ्य इति करतलकरपृष्ठाभ्यां नमः ।","इति करन्यासः ॥"],"label":"अथ करन्यासः ।"},{"lines":["ॐ विश्वं विष्णुर्वषट्कार इति हृदयाय नमः ।","अमृतांशूद्भवो भानुरिति शिरसे स्वाहा ।","ब्रह्मण्यो ब्रह्मकृद्ब्रह्मेति शिखायै वषट् ।","सुवर्णबिन्दुरक्षोभ्य इति कवचाय हुम् ।","निमिषोऽनिमिषः स्रग्वीति नेत्रत्रयाय वौषट् ।","रथाङ्गपाणिरक्षोभ्य इत्यस्त्राय फट् ।"],"label":"अथ षडङ्गन्यासः ।"},{"lines":["(Alternatively","सुव्रतः सुमुखः सूक्ष्मेति ज्ञानाय हृदयाय नमः ।","सहस्रमूर्धा विश्वात्मेति ऐश्वराय शिरसे स्वाहा ।","सहस्रार्चिः सप्तजिह्वेति शक्त्यै शिखायै वषट् ।","त्रिसामा सामगः सामेति बलाय कवचाय हुम् ।","रथाङ्गपाणिरक्षोभ्य इति तेजसे नेत्रत्रयाय वौषट् ।","शार्ङ्गधन्वा गदाधर इति वीर्याय अस्त्राय फट् ।","ऋतुः सुदर्शनः काल इति भूर्भुवःसुवरोमिति दिग्बन्धः ॥)"],"alt":true},{"lines":["इति षडङ्गन्यासः ॥"]},{"lines":["श्रीकृष्णप्रीत्यर्थे विष्णोर्दिव्यसहस्रनामजपमहं","करिष्ये इति सङ्कल्पः ।"]}]},{"id":"dhyana","dev":"ध्यानम्","lat":null,"gloss":"Meditation","units":[{"lines":["क्षीरोदन्वत्प्रदेशे शुचिमणिविलसत्सैकते मौक्तिकानां","मालाकॢप्तासनस्थः स्फटिकमणिनिभैर्मौक्तिकैर्मण्डिताङ्गः ।","शुभ्रैरभ्रैरदभ्रैरुपरिविरचितैर्मुक्तपीयूषवर्षै-","रानन्दी नः पुनीयादरिनलिनगदाशङ्खपाणिर्मुकुन्दः ॥ १॥"],"n":1,"label":"अथ ध्यानम् ।"},{"lines":["भूः पादौ यस्य नाभिर्वियदसुरनिलश्चन्द्रसूर्यौ च नेत्रे","कर्णावाशाः शिरो द्यौर्मुखमपि दहनो यस्य वास्तेयमब्धिः ।","अन्तःस्थं यस्य विश्वं सुरनरखगगोभोगिगन्धर्वदैत्यैः","चित्रं रंरम्यते तं त्रिभुवनवपुषं विष्णुमीशं नमामि ॥ २॥"],"n":2},{"lines":["ॐ नमो भगवते वासुदेवाय ॥"]},{"lines":["ॐ शान्ताकारं भुजगशयनं पद्मनाभं सुरेशं","विश्वाधारं गगनसदृशं मेघवर्णं शुभाङ्गम् ।","लक्ष्मीकान्तं कमलनयनं योगिभिर्ध्यानगम्यं (योगिहृद्ध्यानगम्यं)","वन्दे विष्णुं भवभयहरं सर्वलोकैकनाथम् ॥ ३॥"],"n":3},{"lines":["मेघश्यामं पीतकौशेयवासं","श्रीवत्साङ्कं कौस्तुभोद्भासिताङ्गम् ।","पुण्योपेतं पुण्डरीकायताक्षं","विष्णुं वन्दे सर्वलोकैकनाथम् ॥ ४॥"],"n":4},{"lines":["नमः समस्तभूतानामादिभूताय भूभृते ।","अनेकरूपरूपाय विष्णवे प्रभविष्णवे ॥ ५॥"],"n":5},{"lines":["सशङ्खचक्रं सकिरीटकुण्डलं","सपीतवस्त्रं सरसीरुहेक्षणम् ।","सहारवक्षःस्थलकौस्तुभश्रियं (स्थलशोभिकौस्तुभं)","नमामि विष्णुं शिरसा चतुर्भुजम् ॥ ६॥"],"n":6},{"lines":["छायायां पारिजातस्य हेमसिंहासनोपरि","आसीनमम्बुदश्याममायताक्षमलंकृतम् ।","चन्द्राननं चतुर्बाहुं श्रीवत्साङ्कितवक्षसं","रुक्मिणीसत्यभामाभ्यां सहितं कृष्णमाश्रये ॥ ७॥"],"n":7}]},{"id":"stotram","dev":"स्तोत्रम्","lat":null,"gloss":"The thousand names","units":[{"lines":["हरिः ॐ ।"]},{"lines":["ॐ विश्वं विष्णुर्वषट्कारो भूतभव्यभवत्प्रभुः ।","भूतकृद्भूतभृद्भावो भूतात्मा भूतभावनः ॥ १॥"],"n":1},{"lines":["पूतात्मा परमात्मा च मुक्तानां परमा गतिः ।","अव्ययः पुरुषः साक्षी क्षेत्रज्ञोऽक्षर एव च ॥ २॥"],"n":2},{"lines":["योगो योगविदां नेता प्रधानपुरुषेश्वरः ।","नारसिंहवपुः श्रीमान् केशवः पुरुषोत्तमः ॥ ३॥"],"n":3},{"lines":["सर्वः शर्वः शिवः स्थाणुर्भूतादिर्निधिरव्ययः ।","सम्भवो भावनो भर्ता प्रभवः प्रभुरीश्वरः ॥ ४॥"],"n":4},{"lines":["स्वयम्भूः शम्भुरादित्यः पुष्कराक्षो महास्वनः ।","अनादिनिधनो धाता विधाता धातुरुत्तमः ॥ ५॥"],"n":5},{"lines":["अप्रमेयो हृषीकेशः पद्मनाभोऽमरप्रभुः ।","विश्वकर्मा मनुस्त्वष्टा स्थविष्ठः स्थविरो ध्रुवः ॥ ६॥"],"n":6},{"lines":["अग्राह्यः शाश्वतः कृष्णो लोहिताक्षः प्रतर्दनः ।","प्रभूतस्त्रिककुब्धाम पवित्रं मङ्गलं परम् ॥ ७॥"],"n":7},{"lines":["ईशानः प्राणदः प्राणो ज्येष्ठः श्रेष्ठः प्रजापतिः ।","हिरण्यगर्भो भूगर्भो माधवो मधुसूदनः ॥ ८॥"],"n":8},{"lines":["ईश्वरो विक्रमी धन्वी मेधावी विक्रमः क्रमः ।","अनुत्तमो दुराधर्षः कृतज्ञः कृतिरात्मवान् ॥ ९॥"],"n":9},{"lines":["सुरेशः शरणं शर्म विश्वरेताः प्रजाभवः ।","अहः संवत्सरो व्यालः प्रत्ययः सर्वदर्शनः ॥ १०॥"],"n":10},{"lines":["अजः सर्वेश्वरः सिद्धः सिद्धिः सर्वादिरच्युतः ।","वृषाकपिरमेयात्मा सर्वयोगविनिःसृतः ॥ ११॥"],"n":11},{"lines":["वसुर्वसुमनाः सत्यः समात्माऽसम्मितः समः ।","अमोघः पुण्डरीकाक्षो वृषकर्मा वृषाकृतिः ॥ १२॥"],"n":12},{"lines":["रुद्रो बहुशिरा बभ्रुर्विश्वयोनिः शुचिश्रवाः ।","अमृतः शाश्वतस्थाणुर्वरारोहो महातपाः ॥ १३॥"],"n":13},{"lines":["सर्वगः सर्वविद्भानुर्विष्वक्सेनो जनार्दनः ।","वेदो वेदविदव्यङ्गो वेदाङ्गो वेदवित् कविः ॥ १४॥"],"n":14},{"lines":["लोकाध्यक्षः सुराध्यक्षो धर्माध्यक्षः कृताकृतः ।","चतुरात्मा चतुर्व्यूहश्चतुर्दंष्ट्रश्चतुर्भुजः ॥ १५॥"],"n":15},{"lines":["भ्राजिष्णुर्भोजनं भोक्ता सहिष्णुर्जगदादिजः ।","अनघो विजयो जेता विश्वयोनिः पुनर्वसुः ॥ १६॥"],"n":16},{"lines":["उपेन्द्रो वामनः प्रांशुरमोघः शुचिरूर्जितः ।","अतीन्द्रः सङ्ग्रहः सर्गो धृतात्मा नियमो यमः ॥ १७॥"],"n":17},{"lines":["वेद्यो वैद्यः सदायोगी वीरहा माधवो मधुः ।","अतीन्द्रियो महामायो महोत्साहो महाबलः ॥ १८॥"],"n":18},{"lines":["महाबुद्धिर्महावीर्यो महाशक्तिर्महाद्युतिः ।","अनिर्देश्यवपुः श्रीमानमेयात्मा महाद्रिधृक् ॥ १९॥"],"n":19},{"lines":["महेष्वासो महीभर्ता श्रीनिवासः सतां गतिः ।","अनिरुद्धः सुरानन्दो गोविन्दो गोविदां पतिः ॥ २०॥"],"n":20},{"lines":["मरीचिर्दमनो हंसः सुपर्णो भुजगोत्तमः ।","हिरण्यनाभः सुतपाः पद्मनाभः प्रजापतिः ॥ २१॥"],"n":21},{"lines":["अमृत्युः सर्वदृक् सिंहः सन्धाता सन्धिमान् स्थिरः ।","अजो दुर्मर्षणः शास्ता विश्रुतात्मा सुरारिहा ॥ २२॥"],"n":22},{"lines":["गुरुर्गुरुतमो धाम सत्यः सत्यपराक्रमः ।","निमिषोऽनिमिषः स्रग्वी वाचस्पतिरुदारधीः ॥ २३॥"],"n":23},{"lines":["अग्रणीर्ग्रामणीः श्रीमान् न्यायो नेता समीरणः ।","सहस्रमूर्धा विश्वात्मा सहस्राक्षः सहस्रपात् ॥ २४॥"],"n":24},{"lines":["आवर्तनो निवृत्तात्मा संवृतः सम्प्रमर्दनः ।","अहः संवर्तको वह्निरनिलो धरणीधरः ॥ २५॥"],"n":25},{"lines":["सुप्रसादः प्रसन्नात्मा विश्वधृग्विश्वभुग्विभुः ।","सत्कर्ता सत्कृतः साधुर्जह्नुर्नारायणो नरः ॥ २६॥"],"n":26},{"lines":["असङ्ख्येयोऽप्रमेयात्मा विशिष्टः शिष्टकृच्छुचिः ।","सिद्धार्थः सिद्धसङ्कल्पः सिद्धिदः सिद्धिसाधनः ॥ २७॥"],"n":27},{"lines":["वृषाही वृषभो विष्णुर्वृषपर्वा वृषोदरः ।","वर्धनो वर्धमानश्च विविक्तः श्रुतिसागरः ॥ २८॥"],"n":28},{"lines":["सुभुजो दुर्धरो वाग्मी महेन्द्रो वसुदो वसुः ।","नैकरूपो बृहद्रूपः शिपिविष्टः प्रकाशनः ॥ २९॥"],"n":29},{"lines":["ओजस्तेजोद्युतिधरः प्रकाशात्मा प्रतापनः ।","ऋद्धः स्पष्टाक्षरो मन्त्रश्चन्द्रांशुर्भास्करद्युतिः ॥ ३०॥"],"n":30},{"lines":["अमृतांशूद्भवो भानुः शशबिन्दुः सुरेश्वरः ।","औषधं जगतः सेतुः सत्यधर्मपराक्रमः ॥ ३१॥"],"n":31},{"lines":["भूतभव्यभवन्नाथः पवनः पावनोऽनलः ।","कामहा कामकृत्कान्तः कामः कामप्रदः प्रभुः ॥ ३२॥"],"n":32},{"lines":["युगादिकृद्युगावर्तो नैकमायो महाशनः ।","अदृश्यो व्यक्तरूपश्च सहस्रजिदनन्तजित् ॥ ३३॥"],"n":33},{"lines":["इष्टोऽविशिष्टः शिष्टेष्टः शिखण्डी नहुषो वृषः ।","क्रोधहा क्रोधकृत्कर्ता विश्वबाहुर्महीधरः ॥ ३४॥"],"n":34},{"lines":["अच्युतः प्रथितः प्राणः प्राणदो वासवानुजः ।","अपांनिधिरधिष्ठानमप्रमत्तः प्रतिष्ठितः ॥ ३५॥"],"n":35},{"lines":["स्कन्दः स्कन्दधरो धुर्यो वरदो वायुवाहनः ।","वासुदेवो बृहद्भानुरादिदेवः पुरन्दरः ॥ ३६॥"],"n":36},{"lines":["अशोकस्तारणस्तारः शूरः शौरिर्जनेश्वरः ।","अनुकूलः शतावर्तः पद्मी पद्मनिभेक्षणः ॥ ३७॥"],"n":37},{"lines":["पद्मनाभोऽरविन्दाक्षः पद्मगर्भः शरीरभृत् ।","महर्द्धिरृद्धो वृद्धात्मा महाक्षो गरुडध्वजः ॥ ३८॥"],"n":38},{"lines":["अतुलः शरभो भीमः समयज्ञो हविर्हरिः ।","सर्वलक्षणलक्षण्यो लक्ष्मीवान् समितिञ्जयः ॥ ३९॥"],"n":39},{"lines":["विक्षरो रोहितो मार्गो हेतुर्दामोदरः सहः ।","महीधरो महाभागो वेगवानमिताशनः ॥ ४०॥"],"n":40},{"lines":["उद्भवः क्षोभणो देवः श्रीगर्भः परमेश्वरः ।","करणं कारणं कर्ता विकर्ता गहनो गुहः ॥ ४१॥"],"n":41},{"lines":["व्यवसायो व्यवस्थानः संस्थानः स्थानदो ध्रुवः ।","परर्द्धिः परमस्पष्टस्तुष्टः पुष्टः शुभेक्षणः ॥ ४२॥"],"n":42},{"lines":["रामो विरामो विरजो मार्गो नेयो नयोऽनयः । (विरामो विरतो)","वीरः शक्तिमतां श्रेष्ठो धर्मो धर्मविदुत्तमः ॥ ४३॥"],"n":43},{"lines":["वैकुण्ठः पुरुषः प्राणः प्राणदः प्रणवः पृथुः ।","हिरण्यगर्भः शत्रुघ्नो व्याप्तो वायुरधोक्षजः ॥ ४४॥"],"n":44},{"lines":["ऋतुः सुदर्शनः कालः परमेष्ठी परिग्रहः ।","उग्रः संवत्सरो दक्षो विश्रामो विश्वदक्षिणः ॥ ४५॥"],"n":45},{"lines":["विस्तारः स्थावरस्थाणुः प्रमाणं बीजमव्ययम् ।","अर्थोऽनर्थो महाकोशो महाभोगो महाधनः ॥ ४६॥"],"n":46},{"lines":["अनिर्विण्णः स्थविष्ठोऽभूर्धर्मयूपो महामखः ।","नक्षत्रनेमिर्नक्षत्री क्षमः क्षामः समीहनः ॥ ४७॥"],"n":47},{"lines":["यज्ञ इज्यो महेज्यश्च क्रतुः सत्रं सतां गतिः ।","सर्वदर्शी विमुक्तात्मा सर्वज्ञो ज्ञानमुत्तमम् ॥ ४८॥"],"n":48},{"lines":["सुव्रतः सुमुखः सूक्ष्मः सुघोषः सुखदः सुहृत् ।","मनोहरो जितक्रोधो वीरबाहुर्विदारणः ॥ ४९॥"],"n":49},{"lines":["स्वापनः स्ववशो व्यापी नैकात्मा नैककर्मकृत् ।","वत्सरो वत्सलो वत्सी रत्नगर्भो धनेश्वरः ॥ ५०॥"],"n":50},{"lines":["धर्मगुब्धर्मकृद्धर्मी सदसत्क्षरमक्षरम् ।","अविज्ञाता सहस्रांशुर्विधाता कृतलक्षणः ॥ ५१॥"],"n":51},{"lines":["गभस्तिनेमिः सत्त्वस्थः सिंहो भूतमहेश्वरः ।","आदिदेवो महादेवो देवेशो देवभृद्गुरुः ॥ ५२॥"],"n":52},{"lines":["उत्तरो गोपतिर्गोप्ता ज्ञानगम्यः पुरातनः ।","शरीरभूतभृद्भोक्ता कपीन्द्रो भूरिदक्षिणः ॥ ५३॥"],"n":53},{"lines":["सोमपोऽमृतपः सोमः पुरुजित्पुरुसत्तमः ।","विनयो जयः सत्यसन्धो दाशार्हः सात्वताम्पतिः ॥ ५४॥ विनियोज्यः"],"n":54},{"lines":["जीवो विनयिता साक्षी मुकुन्दोऽमितविक्रमः ।","अम्भोनिधिरनन्तात्मा महोदधिशयोऽन्तकः ॥ ५५॥"],"n":55},{"lines":["अजो महार्हः स्वाभाव्यो जितामित्रः प्रमोदनः ।","आनन्दो नन्दनो नन्दः सत्यधर्मा त्रिविक्रमः ॥ ५६॥"],"n":56},{"lines":["महर्षिः कपिलाचार्यः कृतज्ञो मेदिनीपतिः ।","त्रिपदस्त्रिदशाध्यक्षो महाश‍ृङ्गः कृतान्तकृत् ॥ ५७॥"],"n":57},{"lines":["महावराहो गोविन्दः सुषेणः कनकाङ्गदी ।","गुह्यो गभीरो गहनो गुप्तश्चक्रगदाधरः ॥ ५८॥"],"n":58},{"lines":["वेधाः स्वाङ्गोऽजितः कृष्णो दृढः सङ्कर्षणोऽच्युतः ।","वरुणो वारुणो वृक्षः पुष्कराक्षो महामनाः ॥ ५९॥"],"n":59},{"lines":["भगवान् भगहाऽऽनन्दी वनमाली हलायुधः ।","आदित्यो ज्योतिरादित्यः सहिष्णुर्गतिसत्तमः ॥ ६०॥"],"n":60},{"lines":["सुधन्वा खण्डपरशुर्दारुणो द्रविणप्रदः ।","दिवस्पृक् सर्वदृग्व्यासो वाचस्पतिरयोनिजः ॥ ६१॥ (दिविस्पृक्)"],"n":61},{"lines":["त्रिसामा सामगः साम निर्वाणं भेषजं भिषक् ।","संन्यासकृच्छमः शान्तो निष्ठा शान्तिः परायणम् ॥ ६२॥"],"n":62},{"lines":["शुभाङ्गः शान्तिदः स्रष्टा कुमुदः कुवलेशयः ।","गोहितो गोपतिर्गोप्ता वृषभाक्षो वृषप्रियः ॥ ६३॥"],"n":63},{"lines":["अनिवर्ती निवृत्तात्मा सङ्क्षेप्ता क्षेमकृच्छिवः ।","श्रीवत्सवक्षाः श्रीवासः श्रीपतिः श्रीमतांवरः ॥ ६४॥"],"n":64},{"lines":["श्रीदः श्रीशः श्रीनिवासः श्रीनिधिः श्रीविभावनः ।","श्रीधरः श्रीकरः श्रेयः श्रीमाँल्लोकत्रयाश्रयः ॥ ६५॥"],"n":65},{"lines":["स्वक्षः स्वङ्गः शतानन्दो नन्दिर्ज्योतिर्गणेश्वरः ।","विजितात्माऽविधेयात्मा सत्कीर्तिश्छिन्नसंशयः ॥ ६६॥"],"n":66},{"lines":["उदीर्णः सर्वतश्चक्षुरनीशः शाश्वतस्थिरः ।","भूशयो भूषणो भूतिर्विशोकः शोकनाशनः ॥ ६७॥"],"n":67},{"lines":["अर्चिष्मानर्चितः कुम्भो विशुद्धात्मा विशोधनः ।","अनिरुद्धोऽप्रतिरथः प्रद्युम्नोऽमितविक्रमः ॥ ६८॥"],"n":68},{"lines":["कालनेमिनिहा वीरः शौरिः शूरजनेश्वरः ।","त्रिलोकात्मा त्रिलोकेशः केशवः केशिहा हरिः ॥ ६९॥"],"n":69},{"lines":["कामदेवः कामपालः कामी कान्तः कृतागमः ।","अनिर्देश्यवपुर्विष्णुर्वीरोऽनन्तो धनञ्जयः ॥ ७०॥"],"n":70},{"lines":["ब्रह्मण्यो ब्रह्मकृद् ब्रह्मा ब्रह्म ब्रह्मविवर्धनः ।","ब्रह्मविद् ब्राह्मणो ब्रह्मी ब्रह्मज्ञो ब्राह्मणप्रियः ॥ ७१॥"],"n":71},{"lines":["महाक्रमो महाकर्मा महातेजा महोरगः ।","महाक्रतुर्महायज्वा महायज्ञो महाहविः ॥ ७२॥"],"n":72},{"lines":["स्तव्यः स्तवप्रियः स्तोत्रं स्तुतिः स्तोता रणप्रियः ।","पूर्णः पूरयिता पुण्यः पुण्यकीर्तिरनामयः ॥ ७३॥"],"n":73},{"lines":["मनोजवस्तीर्थकरो वसुरेता वसुप्रदः ।","वसुप्रदो वासुदेवो वसुर्वसुमना हविः ॥ ७४॥"],"n":74},{"lines":["सद्गतिः सत्कृतिः सत्ता सद्भूतिः सत्परायणः ।","शूरसेनो यदुश्रेष्ठः सन्निवासः सुयामुनः ॥ ७५॥"],"n":75},{"lines":["भूतावासो वासुदेवः सर्वासुनिलयोऽनलः ।","दर्पहा दर्पदो दृप्तो दुर्धरोऽथापराजितः ॥ ७६॥"],"n":76},{"lines":["विश्वमूर्तिर्महामूर्तिर्दीप्तमूर्तिरमूर्तिमान् ।","अनेकमूर्तिरव्यक्तः शतमूर्तिः शताननः ॥ ७७॥"],"n":77},{"lines":["एको नैकः सवः कः किं यत् तत्पदमनुत्तमम् ।","लोकबन्धुर्लोकनाथो माधवो भक्तवत्सलः ॥ ७८॥"],"n":78},{"lines":["सुवर्णवर्णो हेमाङ्गो वराङ्गश्चन्दनाङ्गदी ।","वीरहा विषमः शून्यो घृताशीरचलश्चलः ॥ ७९॥"],"n":79},{"lines":["अमानी मानदो मान्यो लोकस्वामी त्रिलोकधृक् ।","सुमेधा मेधजो धन्यः सत्यमेधा धराधरः ॥ ८०॥"],"n":80},{"lines":["तेजोवृषो द्युतिधरः सर्वशस्त्रभृतां वरः ।","प्रग्रहो निग्रहो व्यग्रो नैकश‍ृङ्गो गदाग्रजः ॥ ८१॥"],"n":81},{"lines":["चतुर्मूर्तिश्चतुर्बाहुश्चतुर्व्यूहश्चतुर्गतिः ।","चतुरात्मा चतुर्भावश्चतुर्वेदविदेकपात् ॥ ८२॥"],"n":82},{"lines":["समावर्तोऽनिवृत्तात्मा दुर्जयो दुरतिक्रमः ।","दुर्लभो दुर्गमो दुर्गो दुरावासो दुरारिहा ॥ ८३॥"],"n":83},{"lines":["शुभाङ्गो लोकसारङ्गः सुतन्तुस्तन्तुवर्धनः ।","इन्द्रकर्मा महाकर्मा कृतकर्मा कृतागमः ॥ ८४॥"],"n":84},{"lines":["उद्भवः सुन्दरः सुन्दो रत्ननाभः सुलोचनः ।","अर्को वाजसनः श‍ृङ्गी जयन्तः सर्वविज्जयी ॥ ८५॥"],"n":85},{"lines":["सुवर्णबिन्दुरक्षोभ्यः सर्ववागीश्वरेश्वरः ।","महाह्रदो महागर्तो महाभूतो महानिधिः ॥ ८६॥"],"n":86},{"lines":["कुमुदः कुन्दरः कुन्दः पर्जन्यः पावनोऽनिलः ।","अमृताशोऽमृतवपुः सर्वज्ञः सर्वतोमुखः ॥ ८७॥"],"n":87},{"lines":["सुलभः सुव्रतः सिद्धः शत्रुजिच्छत्रुतापनः ।","न्यग्रोधोऽदुम्बरोऽश्वत्थश्चाणूरान्ध्रनिषूदनः ॥ ८८॥"],"n":88},{"lines":["सहस्रार्चिः सप्तजिह्वः सप्तैधाः सप्तवाहनः ।","अमूर्तिरनघोऽचिन्त्यो भयकृद्भयनाशनः ॥ ८९॥"],"n":89},{"lines":["अणुर्बृहत्कृशः स्थूलो गुणभृन्निर्गुणो महान् ।","अधृतः स्वधृतः स्वास्यः प्राग्वंशो वंशवर्धनः ॥ ९०॥"],"n":90},{"lines":["भारभृत् कथितो योगी योगीशः सर्वकामदः ।","आश्रमः श्रमणः क्षामः सुपर्णो वायुवाहनः ॥ ९१॥"],"n":91},{"lines":["धनुर्धरो धनुर्वेदो दण्डो दमयिता दमः ।","अपराजितः सर्वसहो नियन्ताऽनियमोऽयमः ॥ ९२॥"],"n":92},{"lines":["सत्त्ववान् सात्त्विकः सत्यः सत्यधर्मपरायणः ।","अभिप्रायः प्रियार्होऽर्हः प्रियकृत् प्रीतिवर्धनः ॥ ९३॥"],"n":93},{"lines":["विहायसगतिर्ज्योतिः सुरुचिर्हुतभुग्विभुः ।","रविर्विरोचनः सूर्यः सविता रविलोचनः ॥ ९४॥"],"n":94},{"lines":["अनन्तो हुतभुग्भोक्ता सुखदो नैकजोऽग्रजः ।","अनिर्विण्णः सदामर्षी लोकाधिष्ठानमद्भुतः ॥ ९५॥"],"n":95},{"lines":["सनात्सनातनतमः कपिलः कपिरव्ययः ।","स्वस्तिदः स्वस्तिकृत्स्वस्ति स्वस्तिभुक्स्वस्तिदक्षिणः ॥ ९६॥"],"n":96},{"lines":["अरौद्रः कुण्डली चक्री विक्रम्यूर्जितशासनः ।","शब्दातिगः शब्दसहः शिशिरः शर्वरीकरः ॥ ९७॥"],"n":97},{"lines":["अक्रूरः पेशलो दक्षो दक्षिणः क्षमिणांवरः ।","विद्वत्तमो वीतभयः पुण्यश्रवणकीर्तनः ॥ ९८॥"],"n":98},{"lines":["उत्तारणो दुष्कृतिहा पुण्यो दुःस्वप्ननाशनः ।","वीरहा रक्षणः सन्तो जीवनः पर्यवस्थितः ॥ ९९॥"],"n":99},{"lines":["अनन्तरूपोऽनन्तश्रीर्जितमन्युर्भयापहः ।","चतुरश्रो गभीरात्मा विदिशो व्यादिशो दिशः ॥ १००॥"],"n":100},{"lines":["अनादिर्भूर्भुवो लक्ष्मीः सुवीरो रुचिराङ्गदः ।","जननो जनजन्मादिर्भीमो भीमपराक्रमः ॥ १०१॥"],"n":101},{"lines":["आधारनिलयोऽधाता पुष्पहासः प्रजागरः ।","ऊर्ध्वगः सत्पथाचारः प्राणदः प्रणवः पणः ॥ १०२॥"],"n":102},{"lines":["प्रमाणं प्राणनिलयः प्राणभृत्प्राणजीवनः ।","तत्त्वं तत्त्वविदेकात्मा जन्ममृत्युजरातिगः ॥ १०३॥"],"n":103},{"lines":["भूर्भुवःस्वस्तरुस्तारः सविता प्रपितामहः ।","यज्ञो यज्ञपतिर्यज्वा यज्ञाङ्गो यज्ञवाहनः ॥ १०४॥"],"n":104},{"lines":["यज्ञभृद् यज्ञकृद् यज्ञी यज्ञभुग् यज्ञसाधनः ।","यज्ञान्तकृद् यज्ञगुह्यमन्नमन्नाद एव च ॥ १०५॥"],"n":105},{"lines":["आत्मयोनिः स्वयञ्जातो वैखानः सामगायनः ।","देवकीनन्दनः स्रष्टा क्षितीशः पापनाशनः ॥ १०६॥"],"n":106},{"lines":["शङ्खभृन्नन्दकी चक्री शार्ङ्गधन्वा गदाधरः ।","रथाङ्गपाणिरक्षोभ्यः सर्वप्रहरणायुधः ॥ १०७॥"],"n":107},{"lines":["सर्वप्रहरणायुध ॐ नम इति ।"]},{"lines":["वनमाली गदी शार्ङ्गी शङ्खी चक्री च नन्दकी ।","श्रीमान् नारायणो विष्णुर्वासुदेवोऽभिरक्षतु ॥ १०८॥"],"n":108},{"lines":["श्रीवासुदेवोऽभिरक्षतु ॐ नम इति ।"]}]},{"id":"phala","dev":"उत्तरन्यासः, फलश्रुतिः","lat":null,"gloss":"Closing and fruits of recitation","units":[{"lines":["इतीदं कीर्तनीयस्य केशवस्य महात्मनः ।","नाम्नां सहस्रं दिव्यानामशेषेण प्रकीर्तितम् ॥ १॥"],"n":1,"label":"भीष्म उवाच"},{"lines":["य इदं श‍ृणुयान्नित्यं यश्चापि परिकीर्तयेत् ।","नाशुभं प्राप्नुयात्किञ्चित्सोऽमुत्रेह च मानवः ॥ २॥"],"n":2},{"lines":["वेदान्तगो ब्राह्मणः स्यात्क्षत्रियो विजयी भवेत् ।","वैश्यो धनसमृद्धः स्याच्छूद्रः सुखमवाप्नुयात् ॥ ३॥"],"n":3},{"lines":["धर्मार्थी प्राप्नुयाद्धर्ममर्थार्थी चार्थमाप्नुयात् ।","कामानवाप्नुयात्कामी प्रजार्थी प्राप्नुयात्प्रजाम् ॥ ४॥"],"n":4},{"lines":["भक्तिमान् यः सदोत्थाय शुचिस्तद्गतमानसः ।","सहस्रं वासुदेवस्य नाम्नामेतत्प्रकीर्तयेत् ॥ ५॥"],"n":5},{"lines":["यशः प्राप्नोति विपुलं ज्ञातिप्राधान्यमेव च ।","अचलां श्रियमाप्नोति श्रेयः प्राप्नोत्यनुत्तमम् ॥ ६॥"],"n":6},{"lines":["न भयं क्वचिदाप्नोति वीर्यं तेजश्च विन्दति ।","भवत्यरोगो द्युतिमान्बलरूपगुणान्वितः ॥ ७॥"],"n":7},{"lines":["रोगार्तो मुच्यते रोगाद्बद्धो मुच्येत बन्धनात् ।","भयान्मुच्येत भीतस्तु मुच्येतापन्न आपदः ॥ ८॥"],"n":8},{"lines":["दुर्गाण्यतितरत्याशु पुरुषः पुरुषोत्तमम् ।","स्तुवन्नामसहस्रेण नित्यं भक्तिसमन्वितः ॥ ९॥"],"n":9},{"lines":["वासुदेवाश्रयो मर्त्यो वासुदेवपरायणः ।","सर्वपापविशुद्धात्मा याति ब्रह्म सनातनम् ॥ १०॥"],"n":10},{"lines":["न वासुदेवभक्तानामशुभं विद्यते क्वचित् ।","जन्ममृत्युजराव्याधिभयं नैवोपजायते ॥ ११॥"],"n":11},{"lines":["इमं स्तवमधीयानः श्रद्धाभक्तिसमन्वितः ।","युज्येतात्मसुखक्षान्तिश्रीधृतिस्मृतिकीर्तिभिः ॥ १२॥"],"n":12},{"lines":["न क्रोधो न च मात्सर्यं न लोभो नाशुभा मतिः ।","भवन्ति कृतपुण्यानां भक्तानां पुरुषोत्तमे ॥ १३॥"],"n":13},{"lines":["द्यौः सचन्द्रार्कनक्षत्रा खं दिशो भूर्महोदधिः ।","वासुदेवस्य वीर्येण विधृतानि महात्मनः ॥ १४॥"],"n":14},{"lines":["ससुरासुरगन्धर्वं सयक्षोरगराक्षसम् ।","जगद्वशे वर्ततेदं कृष्णस्य सचराचरम् ॥ १५॥"],"n":15},{"lines":["इन्द्रियाणि मनो बुद्धिः सत्त्वं तेजो बलं धृतिः ।","वासुदेवात्मकान्याहुः क्षेत्रं क्षेत्रज्ञ एव च ॥ १६॥"],"n":16},{"lines":["सर्वागमानामाचारः प्रथमं परिकल्प्यते । (परिकल्पते, परिकल्पितः)","आचारप्रभवो धर्मो धर्मस्य प्रभुरच्युतः ॥ १७॥"],"n":17},{"lines":["ऋषयः पितरो देवा महाभूतानि धातवः ।","जङ्गमाजङ्गमं चेदं जगन्नारायणोद्भवम् ॥ १८॥"],"n":18},{"lines":["योगो ज्ञानं तथा साङ्ख्यं विद्याः शिल्पादिकर्म च ।","वेदाः शास्त्राणि विज्ञानमेतत्सर्वं जनार्दनात् ॥ १९॥"],"n":19},{"lines":["एको विष्णुर्महद्भूतं पृथग्भूतान्यनेकशः ।","त्रींल्लोकान्व्याप्य भूतात्मा भुङ्क्ते विश्वभुगव्ययः ॥ २०॥"],"n":20},{"lines":["इमं स्तवं भगवतो विष्णोर्व्यासेन कीर्तितम् ।","पठेद्य इच्छेत्पुरुषः श्रेयः प्राप्तुं सुखानि च ॥ २१॥"],"n":21},{"lines":["विश्वेश्वरमजं देवं जगतः प्रभुमव्ययम् ।","भजन्ति ये पुष्कराक्षं न ते यान्ति पराभवम् ॥ २२॥"],"n":22},{"lines":["न ते यान्ति पराभवम् ॐ नम इति ।"]},{"lines":["पद्मपत्रविशालाक्ष पद्मनाभ सुरोत्तम ।","भक्तानामनुरक्तानां त्राता भव जनार्दन ॥ २३॥"],"n":23,"label":"अर्जुन उवाच"},{"lines":["यो मां नामसहस्रेण स्तोतुमिच्छति पाण्डव ।","सोहऽमेकेन श्लोकेन स्तुत एव न संशयः ॥ २४॥"],"n":24,"label":"श्रीभगवानुवाच"},{"lines":["स्तुत एव न संशय ॐ नम इति ।"]},{"lines":["वासनाद्वासुदेवस्य वासितं भुवनत्रयम् ।","सर्वभूतनिवासोऽसि वासुदेव नमोऽस्तु ते ॥ २५॥"],"n":25,"label":"व्यास उवाच"},{"lines":["श्रीवासुदेव नमोऽस्तु त ॐ नम इति ।"]},{"lines":["केनोपायेन लघुना विष्णोर्नामसहस्रकम् ।","पठ्यते पण्डितैर्नित्यं श्रोतुमिच्छाम्यहं प्रभो ॥ २६॥"],"n":26,"label":"पार्वत्युवाच"},{"lines":["श्रीरामरामरामेति रमे रामे मनोरमे । (रामरामेति रामेति)","सहस्रनामतत्तुल्यं रामनाम वरानने ॥ २७॥"],"n":27,"label":"ईश्वर उवाच"},{"lines":["श्रीरामनाम वरानन ॐ नम इति ।"]},{"lines":["नमोऽस्त्वनन्ताय सहस्रमूर्तये","सहस्रपादाक्षिशिरोरुबाहवे ।","सहस्रनाम्ने पुरुषाय शाश्वते","सहस्रकोटियुगधारिणे नमः ॥ २८॥"],"n":28,"label":"ब्रह्मोवाच"},{"lines":["सहस्रकोटियुगधारिणे नम ॐ नम इति ।"]},{"lines":["ॐ तत्सदिति श्रीमहाभारते शतसाहस्र्यां संहितायां वैयासिक्यामानुशासनिके","पर्वणि भीष्मयुधिष्ठिरसंवादे श्रीविष्णोर्दिव्यसहस्रनामस्तोत्रम् ॥"]},{"lines":["यत्र योगेश्वरः कृष्णो यत्र पार्थो धनुर्धरः ।","तत्र श्रीर्विजयो भूतिर्ध्रुवा नीतिर्मतिर्मम ॥ २९॥"],"n":29,"label":"सञ्जय उवाच"},{"lines":["अनन्याश्चिन्तयन्तो मां ये जनाः पर्युपासते ।","तेषां नित्याभियुक्तानां योगक्षेमं वहाम्यहम् ॥ ३०॥"],"n":30,"label":"श्रीभगवानुवाच"},{"lines":["परित्राणाय साधूनां विनाशाय च दुष्कृताम् ।","धर्मसंस्थापनार्थाय सम्भवामि युगे युगे ॥ ३१॥"],"n":31},{"lines":["आर्ता विषण्णाः शिथिलाश्च भीता घोरेषु च व्याधिषु वर्तमानाः ।","सङ्कीर्त्य नारायणशब्दमात्रं विमुक्तदुःखाः सुखिनो भवन्ति ॥ ३२॥ (भवन्तु)"],"n":32},{"lines":["कायेन वाचा मनसेन्द्रियैर्वा बुद्ध्यात्मना वा प्रकृतेः स्वभावात् । (प्रकृतिस्वभावात् ।)","करोमि यद्यत् सकलं परस्मै नारायणायेति समर्पयामि ॥ ३३॥"],"n":33},{"lines":["इति श्रीविष्णोर्दिव्यसहस्रनामस्तोत्रं सम्पूर्णम् ।","ॐ तत् सत् ।"]},{"lines":["महाभारते अनुशासनपर्वणि अध्यायः १४९"]}]},{"id":"additional","dev":"","lat":"Additional Concluding Shlokas","gloss":"As given in the source","units":[{"lines":["ॐ आपदामपहर्तारं दातारं सर्वसम्पदाम् ।","लोकाभिरामं श्रीरामं भूयो भूयो नमाम्यहम् ॥"]},{"lines":["आर्तानामार्तिहन्तारं भीतानां भीतिनाशनम् ।","द्विषतां कालदण्डं तं रामचन्द्रं नमाम्यहम् ॥"]},{"lines":["नमः कोदण्डहस्ताय सन्धीकृतशराय च ।","खण्डिताखिलदैत्याय रामायापन्निवारिणे ॥"]},{"lines":["रामाय रामभद्राय रामचन्द्राय वेधसे ।","रघुनाथाय नाथाय सीतायाः पतये नमः ॥"]},{"lines":["अग्रतः पृष्ठतश्चैव पार्श्वतश्च महाबलौ ।","आकर्णपूर्णधन्वानौ रक्षेतां रामलक्ष्मणौ ॥"]},{"lines":["सन्नद्धः कवची खड्गी चापबाणधरो युवा ।","गच्छन् ममाग्रतो नित्यं रामः पातु सलक्ष्मणः ॥"]},{"lines":["अच्युतानन्तगोविन्दनामोच्चारणभेषजात् ।","नश्यन्ति सकला रोगास्सत्यं सत्यं वदाम्यहम् ॥"]},{"lines":["सत्यं सत्यं पुनस्सत्यमुद्धृत्य भुजमुच्यते ।","वेदाच्छास्त्रं परं नास्ति न दैवं केशवात्परम् ॥ (न देवः केशवात्परः - गरुडपुराण ३.१०.५५)"]},{"lines":["शरीरे जर्जरीभूते व्याधिग्रस्ते कलेवरे ।","औषधं जाह्नवीतोयं वैद्यो नारायणो हरिः ॥"]},{"lines":["आलोड्य सर्वशास्त्राणि विचार्य च पुनः पुनः ।","इदमेकं सुनिष्पन्नं ध्येयो नारायणो हरिः ॥"]},{"lines":["यदक्षरपदभ्रष्टं मात्राहीनं तु यद्भवेत् ।","तत्सर्वं क्षम्यतां देव नारायण नमोऽस्तु ते ॥"]},{"lines":["विसर्गबिन्दुमात्राणि पदपादाक्षराणि च ।","न्यूनानि चातिरिक्तानि क्षमस्व पुरुषोत्तम ॥"]}]},{"id":"alternate","dev":"","lat":"Alternate Concluding Shlokas","gloss":"As given in the source","units":[{"lines":["नमः कमलनाभाय नमस्ते जलशायिने ।","नमस्ते केशवानन्त वासुदेव नमोऽस्तुते ॥"]},{"lines":["नमो ब्रह्मण्यदेवाय गोब्राह्मणहिताय च ।","जगद्धिताय कृष्णाय गोविन्दाय नमो नमः ॥"]},{"lines":["आकाशात्पतितं तोयं यथा गच्छति सागरम् ।","सर्वदेवनमस्कारः केशवं प्रति गच्छति ॥"]},{"lines":["एष निष्कण्टकः पन्था यत्र सम्पूज्यते हरिः ।","कुपथं तं विजानीयाद् गोविन्दरहितागमम् ॥"]},{"lines":["सर्ववेदेषु यत्पुण्यं सर्वतीर्थेषु यत्फलम् ।","तत्फलं समवाप्नोति स्तुत्वा देवं जनार्दनम् ॥"]},{"lines":["यो नरः पठते नित्यं त्रिकालं केशवालये ।","द्विकालमेककालं वा क्रूरं सर्वं व्यपोहति ॥"]},{"lines":["दह्यन्ते रिपवस्तस्य सौम्याः सर्वे सदा ग्रहाः ।","विलीयन्ते च पापानि स्तवे ह्यस्मिन् प्रकीर्तिते ॥"]},{"lines":["येन ध्यातः श्रुतो येन येनायं पठ्यते स्तवः ।","दत्तानि सर्वदानानि सुराः सर्वे समर्चिताः ॥"]},{"lines":["इह लोके परे वापि न भयं विद्यते क्वचित् ।","नाम्नां सहस्रं योऽधीते द्वादश्यां मम सन्निधौ ॥"]},{"lines":["शनैर्दहन्ति पापानि कल्पकोटिशतानि च ।","अश्वत्थसन्निधौ पार्थ ध्यात्वा मनसि केशवम् ॥"]},{"lines":["पठेन्नामसहस्रं तु गवां कोटिफलं लभेत् ।","शिवालये पठेन्नित्यं तुलसीवनसंस्थितः ॥"]},{"lines":["नरो मुक्तिमवाप्नोति चक्रपाणेर्वचो यथा ।","ब्रह्महत्यादिकं घोरं सर्वपापं विनश्यति ॥"]},{"lines":["विलयं यान्ति पापानि चान्यपापस्य का कथा ।","सर्वपापविनिर्मुक्तो विष्णुलोकं स गच्छति ॥"]},{"lines":["॥ हरिः ॐ तत्सत् ॥"]}]}]},"hc":{"id":"hc","short":"Hanuman Chalisa","dev":"श्रीहनुमान चालीसा","lat":"Śrī Hanumāna Cālīsā","meta":"Gosvāmī Tulasīdāsa, in Awadhi","hindi":true,"source":"https://sanskritdocuments.org/doc_hanumaana/hanuman40.html","pdf":"https://sanskritdocuments.org/doc_hanumaana/hanuman40.pdf","sections":[{"id":"doha-open","dev":"दोहा","lat":null,"gloss":"Opening","units":[{"lines":["श्रीगुरु चरन सरोज रज निज मनु मुकुरु सुधारि ।","बरनऊँ रघुबर बिमल जसु जो दायकु फल चारि ॥"],"n":1,"auto":true},{"lines":["बुद्धिहीन तनु जानिके सुमिरौं पवनकुमार ।","बल बुद्धि बिद्या देहु मोहिं हरहु कलेस बिकार ॥"],"n":2,"auto":true}]},{"id":"chaupai","dev":"चौपाई","lat":null,"gloss":"Forty verses","units":[{"lines":["जय हनुमान ज्ञान गुन सागर ।","जय कपीस तिहुँ लोक उजागर ॥"],"n":1,"auto":true},{"lines":["राम दूत अतुलित बल धामा ।","अंजनिपुत्र पवनसुत नामा ॥"],"n":2,"auto":true},{"lines":["महाबीर बिक्रम बजरंगी ।","कुमति निवार सुमति के संगी ॥"],"n":3,"auto":true},{"lines":["कंचन बरन बिराज सुबेसा ।","कानन कुंडल कुंचित केसा ॥"],"n":4,"auto":true},{"lines":["हाथ बज्र औ ध्वजा बिराजै ।","काँधे मूँज जनेऊ साजै ॥"],"n":5,"auto":true},{"lines":["संकर सुवन केसरीनंदन ।","तेज प्रताप महा जग बंदन ॥"],"n":6,"auto":true},{"lines":["विद्यावान गुनी अति चातुर ।","राम काज करिबे को आतुर ॥"],"n":7,"auto":true},{"lines":["प्रभु चरित्र सुनिबे को रसिया ।","राम लखन सीता मन बसिया ॥"],"n":8,"auto":true},{"lines":["सूक्ष्म रूप धरि सियहिं दिखावा ।","बिकट रूप धरि लंक जरावा ॥"],"n":9,"auto":true},{"lines":["भीम रूप धरि असुर सँहारे ।","रामचंद्र के काज सँवारे ॥"],"n":10,"auto":true},{"lines":["लाय सजीवन लखन जियाये ।","श्रीरघुबीर हरषि उर लाये ॥"],"n":11,"auto":true},{"lines":["रघुपति कीन्ही बहुत बड़ाई ।","तुम मम प्रिय भरतहि सम भाई ॥"],"n":12,"auto":true},{"lines":["सहस बदन तुम्हरो जस गावैं ।","अस कहि श्रीपति कंठ लगावैं ॥"],"n":13,"auto":true},{"lines":["सनकादिक ब्रह्मादि मुनीसा ।","नारद सारद सहित अहीसा ॥"],"n":14,"auto":true},{"lines":["जम कुबेर दिगपाल जहाँ ते ।","कबि कोबिद कहि सके कहाँ ते ॥"],"n":15,"auto":true},{"lines":["तुम उपकार सुग्रीवहिं कीन्हा ।","राम मिलाय राज पद दीन्हा ॥"],"n":16,"auto":true},{"lines":["तुम्हरो मंत्र बिभीषन माना ।","लंकेस्वर भए सब जग जाना ॥"],"n":17,"auto":true},{"lines":["जुग सहस्र जोजन पर भानू ।","लील्यो ताहि मधुर फल जानू ॥"],"n":18,"auto":true},{"lines":["प्रभु मुद्रिका मेलि मुख माहीं ।","जलधि लाँघि गये अचरज नाहीं ॥"],"n":19,"auto":true},{"lines":["दुर्गम काज जगत के जेते ।","सुगम अनुग्रह तुम्हरे तेते ॥"],"n":20,"auto":true},{"lines":["राम दुआरे तुम रखवारे ।","होत न आज्ञा बिनु पैसारे ॥"],"n":21,"auto":true},{"lines":["सब सुख लहै तुम्हारी सरना ।","तुम रच्छक काहू को डर ना ॥"],"n":22,"auto":true},{"lines":["आपन तेज संहारो आपै ।","तीनों लोक हाँक तें काँपै ॥"],"n":23,"auto":true},{"lines":["भूत पिसाच निकट नहिं आवै ।","महाबीर जब नाम सुनावै ॥"],"n":24,"auto":true},{"lines":["नासै रोग हरै सब पीरा ।","जपत निरंतर हनुमत बीरा ॥"],"n":25,"auto":true},{"lines":["संकट तें हनुमान छुड़ावै ।","मन क्रम बचन ध्यान जो लावै ॥"],"n":26,"auto":true},{"lines":["सब पर राम तपस्वी राजा ।","तिन के काज सकल तुम साजा ॥"],"n":27,"auto":true},{"lines":["और मनोरथ जो कोई लावै ।","सोई अमित जीवन फल पावै ॥"],"n":28,"auto":true},{"lines":["चारों जुग परताप तुम्हारा ।","है परसिद्ध जगत उजियारा ॥"],"n":29,"auto":true},{"lines":["साधु संत के तुम रखवारे ।","असुर निकंदन राम दुलारे ॥"],"n":30,"auto":true},{"lines":["अष्ट सिद्धि नौ निधि के दाता ।","अस बर दीन जानकी माता ॥"],"n":31,"auto":true},{"lines":["राम रसायन तुम्हरे पासा ।","सदा रहो रघुपति के दासा ॥"],"n":32,"auto":true},{"lines":["तुम्हरे भजन राम को पावै ।","जनम जनम के दुख बिसरावै ॥"],"n":33,"auto":true},{"lines":["अंत काल रघुबर पुर जाई ।","जहाँ जन्म हरिभक्त कहाई ॥"],"n":34,"auto":true},{"lines":["और देवता चित्त न धरई ।","हनुमत सेई सर्ब सुख करई ॥"],"n":35,"auto":true},{"lines":["संकट कटै मिटै सब पीरा ॥","जो सुमिरै हनुमत बलबीरा ॥"],"n":36,"auto":true},{"lines":["जै जै जै हनुमान गोसाईं ।","कृपा करहु गुरु देव की नाईं ॥"],"n":37,"auto":true},{"lines":["जो सत बार पाठ कर कोई ।","छूटहि बंदि महा सुख होई ॥"],"n":38,"auto":true},{"lines":["जो यह पढ़ै हनुमान चलीसा ।","होय सिद्धि साखी गौरीसा ॥"],"n":39,"auto":true},{"lines":["तुलसीदास सदा हरि चेरा ।","कीजै नाथ हृदय महँ डेरा ॥"],"n":40,"auto":true}]},{"id":"doha-close","dev":"दोहा","lat":null,"gloss":"Closing","units":[{"lines":["पवनतनय संकट हरन मंगल मूरति रूप ।","राम लखन सीता सहित हृदय बसहु सुर भूप ॥"]}]},{"id":"aarti","dev":"आरती","lat":null,"gloss":"As given in the source","units":[{"lines":["मंगल मूरती मारुत नंदन","सकल अमंगल मूल निकंदन"]},{"lines":["पवनतनय संतन हितकारी","हृदय बिराजत अवध बिहारी"]},{"lines":["मातु पिता गुरू गणपति सारद","शिव समेत शंभू शुक नारद"]},{"lines":["चरन कमल बिन्धौ सब काहु","देहु रामपद नेहु निबाहु"]},{"lines":["जै जै जै हनुमान गोसाईं","कृपा करहु गुरु देव की नाईं"]},{"lines":["बंधन राम लखन वैदेही","यह तुलसी के परम सनेही"]},{"lines":["॥ सियावर रामचंद्रजी की जय॥"]}]}]}};
+
+// <translit>
+/* Devanagari to IAST. For Hindi (the Chalisa) it follows ISO 15919 where IAST
+   has no letter: ड़ = ṛ, ढ़ = ṛh, so the vowel ऋ becomes r̥. The inherent "a"
+   is written wherever the Devanagari has it (no schwa deletion). */
+const deva2iast = (function () {
+	const CONS = { "क": "k", "ख": "kh", "ग": "g", "घ": "gh", "ङ": "ṅ", "च": "c", "छ": "ch", "ज": "j", "झ": "jh", "ञ": "ñ",
+		"ट": "ṭ", "ठ": "ṭh", "ड": "ḍ", "ढ": "ḍh", "ण": "ṇ", "त": "t", "थ": "th", "द": "d", "ध": "dh", "न": "n",
+		"प": "p", "फ": "ph", "ब": "b", "भ": "bh", "म": "m", "य": "y", "र": "r", "ल": "l", "ळ": "ḷ", "व": "v",
+		"श": "ś", "ष": "ṣ", "स": "s", "ह": "h" };
+	const NUKTA = { "क": "q", "ख": "k͟h", "ग": "ġ", "ज": "z", "ड": "ṛ", "ढ": "ṛh", "फ": "f", "य": "ẏ" };
+	const VOW = { "अ": "a", "आ": "ā", "इ": "i", "ई": "ī", "उ": "u", "ऊ": "ū", "ऋ": "ṛ", "ॠ": "ṝ", "ऌ": "ḷ", "ॡ": "ḹ",
+		"ए": "e", "ऐ": "ai", "ओ": "o", "औ": "au", "ऍ": "ê", "ऑ": "ô" };
+	const MAT = { "ा": "ā", "ि": "i", "ी": "ī", "ु": "u", "ू": "ū", "ृ": "ṛ", "ॄ": "ṝ", "ॢ": "ḷ", "ॣ": "ḹ",
+		"े": "e", "ै": "ai", "ो": "o", "ौ": "au", "ॅ": "ê", "ॉ": "ô" };
+	const SIGN = { "ं": "ṃ", "ः": "ḥ", "ँ": "m̐", "ऽ": "’", "ॐ": "oṃ", "।": "|", "॥": "||",
+		"०": "0", "१": "1", "२": "2", "३": "3", "४": "4", "५": "5", "६": "6", "७": "7", "८": "8", "९": "9" };
+	const SKIP = /[‌‍᳐-᳿॒॑]/;
+	return function (input, hindi) {
+		const s = input.normalize("NFC");
+		let out = "";
+		let pending = false; // a consonant waits for its vowel
+		let last = null;     // last consonant letter, for nukta
+		for (const ch of s) {
+			if (SKIP.test(ch)) continue;
+			if (ch === "़") { // nukta
+				if (last && NUKTA[last]) out = out.slice(0, out.length - CONS[last].length) + NUKTA[last];
+				last = null;
+				continue;
+			}
+			if (CONS[ch]) {
+				if (pending) out += "a";
+				out += CONS[ch];
+				pending = true;
+				last = ch;
+				continue;
+			}
+			last = null;
+			if (MAT[ch] !== undefined) {
+				out += (hindi && ch === "ृ") ? "r̥" : MAT[ch];
+				pending = false;
+				continue;
+			}
+			if (ch === "्") { pending = false; continue; } // virama
+			if (pending) {
+				out += "a";
+				pending = false;
+				// a + independent i/u inside a word would read as the diphthong; mark the hiatus
+				if (ch === "इ") { out += "ï"; continue; }
+				if (ch === "उ") { out += "ü"; continue; }
+			}
+			if (VOW[ch] !== undefined) out += (hindi && ch === "ऋ") ? "r̥" : VOW[ch];
+			else if (SIGN[ch] !== undefined) out += SIGN[ch];
+			else out += ch;
+		}
+		if (pending) out += "a";
+		return out;
+	};
+})();
+// </translit>
+
+(function () {
+	const KEY = "stotra-reader:v1";
+	const SCALES = [ 0.85, 0.92, 1, 1.1, 1.2, 1.32, 1.46, 1.6 ];
+	const MALA = 108;
+	const root = document.documentElement;
+	const hostTheme = root.getAttribute("data-theme");
+	const $ = (id) => document.getElementById(id);
+
+	let state = { text: "vs", script: "dev", scale: 1, theme: "auto", pos: {}, rec: {}, cnt: {} };
+	try {
+		const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+		if (saved && typeof saved === "object") state = Object.assign(state, saved);
+	} catch (e) { /* storage unavailable */ }
+	if (!DATA[state.text]) state.text = "vs";
+	if (!SCALES.includes(state.scale)) state.scale = 1;
+
+	let saveTimer = 0;
+	function save() {
+		clearTimeout(saveTimer);
+		saveTimer = setTimeout(() => {
+			try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignore */ }
+		}, 150);
+	}
+
+	const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+	/* Wrap verse-end marks, dandas and bracketed readings for styling. */
+	const TOKENS = /(॥\s*[०-९]+\s*॥|\|\|\s*\d+\s*\|\||\([^)]*\)?|॥|।|\|\||\|)/;
+	function markup(text, lat) {
+		return text.split(TOKENS).map((part, i) => {
+			if (i % 2 === 0) return esc(part);
+			if (/\d|[०-९]/.test(part) && /॥|\|\|/.test(part)) {
+				return "<span class=\"num\">" + (lat ? "|| " + part.replace(/\D/g, "") + " ||" : esc(part)) + "</span>";
+			}
+			if (part.charAt(0) === "(") return "<span class=\"var\">" + esc(part) + "</span>";
+			return "<span class=\"dnd\">" + esc(part) + "</span>";
+		}).join("");
+	}
+	function linesHtml(lines, hindi) {
+		const lang = hindi ? "hi" : "sa";
+		const dev = lines.map((l) => "<span class=\"ln\">" + markup(l, false) + "</span>").join("");
+		const lat = lines.map((l) => "<span class=\"ln\">" + markup(deva2iast(l, hindi), true) + "</span>").join("");
+		return "<div class=\"dev\" lang=\"" + lang + "\">" + dev + "</div><div class=\"lat\" lang=\"" + lang + "-Latn\">" + lat + "</div>";
+	}
+	function labelHtml(label, hindi) {
+		return "<p class=\"label\"><span class=\"dev\">" + esc(label) + "</span><span class=\"lat\">" + esc(deva2iast(label, hindi)) + "</span></p>";
+	}
+	function secLat(sec, hindi) { return sec.lat || cap(deva2iast(sec.dev, hindi)); }
+	function secCount(t, sec) {
+		const numbered = sec.units.filter((u) => u.n).length;
+		if (t.hindi) {
+			if (sec.id === "aarti") return sec.units.reduce((a, u) => a + u.lines.length, 0) + " lines";
+			if (sec.id === "chaupai") return numbered + " caupāīs";
+			return (numbered || sec.units.length) + ((numbered || sec.units.length) === 1 ? " dohā" : " dohās");
+		}
+		if (numbered) return numbered + " ślokas";
+		if (sec.id === "nyasa") return "Nyāsa";
+		return sec.units.length + " ślokas";
+	}
+	function unitName(t, sec, u) {
+		if (!u.n) return secLat(sec, t.hindi);
+		if (t.hindi) return (sec.id === "chaupai" ? "Caupāī " : "Dohā ") + u.n;
+		return secLat(sec, t.hindi) + " · Śloka " + u.n;
+	}
+
+	/* ---------- render ---------- */
+	const flat = {}; // text id -> [{ sec, u, el }]
+	function renderText(t) {
+		const host = $("text-" + t.id);
+		const lang = t.hindi ? "hi" : "sa";
+		const list = [];
+		let h = "<header class=\"hero\"><p class=\"meta\">" + esc(t.meta) + "</p>"
+			+ "<h1 lang=\"" + lang + "\">" + esc(t.dev) + "</h1>"
+			+ "<p class=\"h-lat\">" + esc(t.lat) + "</p><ol class=\"toc\">";
+		t.sections.forEach((sec) => {
+			h += "<li><a href=\"#" + t.id + "-" + sec.id + "\" data-jump=\"" + sec.id + "\"><span class=\"c-name\">"
+				+ (sec.dev ? "<span class=\"c-dev\" lang=\"" + lang + "\">" + esc(sec.dev) + "</span>" : "<span class=\"c-dev c-latname\">" + esc(sec.lat) + "</span>")
+				+ "<span class=\"c-gloss\">" + esc(sec.dev ? secLat(sec, t.hindi) + " · " + sec.gloss : sec.gloss) + "</span></span>"
+				+ "<span class=\"c-count\">" + esc(secCount(t, sec)) + "</span></a></li>";
+		});
+		h += "</ol></header>";
+		let k = 0;
+		t.sections.forEach((sec) => {
+			h += "<section class=\"sec\" data-sec=\"" + sec.id + "\"><div class=\"sec-head\" id=\"" + t.id + "-" + sec.id + "\">"
+				+ "<span class=\"eyebrow\">" + esc(sec.gloss) + "</span><h2>"
+				+ (sec.dev ? "<span lang=\"" + lang + "\">" + esc(sec.dev) + "</span>" : "")
+				+ "<span class=\"s-lat\">" + esc(secLat(sec, t.hindi)) + "</span></h2></div>";
+			sec.units.forEach((u) => {
+				const id = t.id + "-u" + k;
+				h += "<article class=\"unit" + (u.alt ? " alt" : "") + "\" id=\"" + id + "\" data-k=\"" + k + "\">"
+					+ "<div class=\"gut\" aria-hidden=\"true\">" + (u.n || "") + "</div><div class=\"ubody\">"
+					+ (u.label ? labelHtml(u.label, t.hindi) : "")
+					+ linesHtml(u.lines, t.hindi) + "</div></article>";
+				list.push({ sec, u, id });
+				k++;
+			});
+			h += "</section>";
+		});
+		h += "<footer class=\"colophon\"><p class=\"end-mark\" aria-hidden=\"true\">॥</p>"
+			+ "<p>Text from <a href=\"" + t.source + "\" target=\"_blank\" rel=\"noopener\">sanskritdocuments.org</a> "
+			+ "(<a href=\"" + t.pdf + "\" target=\"_blank\" rel=\"noopener\">Devanagari PDF</a>), reproduced as published. "
+			+ "Their texts are prepared by volunteers for personal study and research; please help maintain respect for the volunteer spirit.</p>"
+			+ (t.hindi
+				? "<p>Verse numbers are added here for reference; the source does not number the Chalisa. The romanization follows ISO 15919 for Hindi letters (ड़ ṛ, ऋ r̥) and keeps every written vowel.</p>"
+				: "<p>Verse numbers are the source’s own. As the source notes, verse numbering differs between prints used for chanting. Bracketed words are alternate readings given in the source.</p>")
+			+ "<p>The IAST transliteration is generated in this page from the Devanagari.</p></footer>";
+		host.innerHTML = h;
+		list.forEach((x) => { x.el = document.getElementById(x.id); });
+		flat[t.id] = list;
+	}
+	renderText(DATA.vs);
+	renderText(DATA.hc);
+
+	/* ---------- preferences ---------- */
+	const SCRIPT_LABEL = {
+		dev: "<span class=\"sc-dev\" lang=\"sa\">देवनागरी</span>",
+		lat: "IAST",
+		both: "Both",
+	};
+	const SCRIPT_SHORT = { dev: "अ", lat: "A", both: "अA" };
+	const NEXT_SCRIPT = { dev: "lat", lat: "both", both: "dev" };
+	function applyScript() {
+		document.body.dataset.script = state.script;
+		$("btn-script").innerHTML = SCRIPT_LABEL[state.script];
+		$("rc-script").textContent = SCRIPT_SHORT[state.script];
+		document.querySelectorAll("#seg-script button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.script)));
+	}
+	function applyScale() {
+		root.style.setProperty("--scale", state.scale);
+		$("size-val").textContent = Math.round(state.scale * 100) + "%";
+		const i = SCALES.indexOf(state.scale);
+		$("size-down").disabled = i <= 0;
+		$("size-up").disabled = i >= SCALES.length - 1;
+	}
+	function applyTheme() {
+		if (state.theme === "light" || state.theme === "dark") root.setAttribute("data-theme", state.theme);
+		else if (hostTheme) root.setAttribute("data-theme", hostTheme);
+		else root.removeAttribute("data-theme");
+		document.querySelectorAll("#seg-theme button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.theme)));
+	}
+	function withAnchor(fn) { // keep the verse at the top of the screen in place when layout changes
+		const k = currentIndex();
+		fn();
+		requestAnimationFrame(() => scrollToUnit(state.text, k, false));
+	}
+	applyScript();
+	applyScale();
+	applyTheme();
+
+	$("btn-script").addEventListener("click", () => withAnchor(() => { state.script = NEXT_SCRIPT[state.script]; applyScript(); save(); }));
+	$("rc-script").addEventListener("click", () => { state.script = NEXT_SCRIPT[state.script]; applyScript(); renderRecite(0); save(); });
+	$("seg-script").addEventListener("click", (e) => {
+		const b = e.target.closest("button"); if (!b) return;
+		withAnchor(() => { state.script = b.dataset.v; applyScript(); save(); });
+	});
+	$("seg-theme").addEventListener("click", (e) => {
+		const b = e.target.closest("button"); if (!b) return;
+		state.theme = b.dataset.v; applyTheme(); save();
+	});
+	function stepScale(d) {
+		const i = Math.min(SCALES.length - 1, Math.max(0, SCALES.indexOf(state.scale) + d));
+		withAnchor(() => { state.scale = SCALES[i]; applyScale(); save(); });
+	}
+	$("size-down").addEventListener("click", () => stepScale(-1));
+	$("size-up").addEventListener("click", () => stepScale(1));
+
+	/* ---------- text switching and reading position ---------- */
+	const topbar = $("topbar");
+	function hdr() { return topbar.getBoundingClientRect().bottom; }
+	function currentIndex() {
+		const list = flat[state.text];
+		const top = hdr() + 16;
+		for (let i = 0; i < list.length; i++) {
+			const r = list[i].el.getBoundingClientRect();
+			if (r.bottom > top) return i;
+		}
+		return list.length - 1;
+	}
+	function scrollToUnit(textId, k, flash) {
+		const list = flat[textId];
+		if (!list || !list.length) return;
+		if (k === null || k === undefined || k <= 0) {
+			if (k === 0 && flash) list[0].el.scrollIntoView({ block: "start" });
+			else window.scrollTo(0, 0);
+			return;
+		}
+		const x = list[Math.min(k, list.length - 1)];
+		x.el.scrollIntoView({ block: "start" });
+		if (flash) {
+			x.el.classList.add("flash");
+			setTimeout(() => x.el.classList.remove("flash"), 60);
+		}
+	}
+	function showText(id, restore) {
+		state.text = id;
+		document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.text === id)));
+		document.querySelectorAll(".text").forEach((s) => { s.hidden = s.dataset.id !== id; });
+		renderSectionList();
+		if (restore) scrollToUnit(id, state.pos[id], false);
+		save();
+	}
+	document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => {
+		if (b.dataset.text === state.text) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+		state.pos[state.text] = currentIndex();
+		showText(b.dataset.text, true);
+	}));
+
+	let ticking = false;
+	let posTimer = 0;
+	window.addEventListener("scroll", () => {
+		if (ticking) return;
+		ticking = true;
+		requestAnimationFrame(() => {
+			ticking = false;
+			topbar.classList.toggle("scrolled", window.scrollY > 8);
+			if (!$("recite").hidden) return;
+			clearTimeout(posTimer);
+			posTimer = setTimeout(() => {
+				state.pos[state.text] = window.scrollY < 40 ? 0 : currentIndex();
+				save();
+			}, 250);
+		});
+	}, { passive: true });
+
+	document.addEventListener("click", (e) => {
+		const a = e.target.closest("[data-jump]");
+		if (!a) return;
+		e.preventDefault();
+		const head = document.getElementById(state.text + "-" + a.dataset.jump);
+		if (head) head.scrollIntoView({ block: "start" });
+	});
+
+	/* ---------- sheets ---------- */
+	let openSheet = null;
+	let sheetReturn = null;
+	function showSheet(id) {
+		closeSheet();
+		openSheet = $(id);
+		sheetReturn = document.activeElement;
+		$("scrim").hidden = false;
+		openSheet.hidden = false;
+		const first = openSheet.querySelector("button");
+		if (first) first.focus({ preventScroll: true });
+	}
+	function closeSheet() {
+		if (!openSheet) return;
+		openSheet.hidden = true;
+		$("scrim").hidden = true;
+		openSheet = null;
+		if (sheetReturn && sheetReturn.focus) sheetReturn.focus({ preventScroll: true });
+	}
+	$("scrim").addEventListener("click", closeSheet);
+	$("btn-display").addEventListener("click", () => showSheet("sheet-display"));
+	$("btn-sections").addEventListener("click", () => showSheet("sheet-sections"));
+	function renderSectionList() {
+		const t = DATA[state.text];
+		const lang = t.hindi ? "hi" : "sa";
+		$("sec-list").innerHTML = t.sections.map((sec) => "<li><button data-sec=\"" + sec.id + "\"><span>"
+			+ (sec.dev ? "<span class=\"c-dev\" lang=\"" + lang + "\">" + esc(sec.dev) + "</span>" : "")
+			+ "<span class=\"c-gloss\">" + esc(sec.dev ? secLat(sec, t.hindi) : sec.lat) + "</span></span>"
+			+ "<span class=\"c-count\">" + esc(secCount(t, sec)) + "</span></button></li>").join("");
+	}
+	$("sec-list").addEventListener("click", (e) => {
+		const b = e.target.closest("button"); if (!b) return;
+		closeSheet();
+		const head = document.getElementById(state.text + "-" + b.dataset.sec);
+		if (head) head.scrollIntoView({ block: "start" });
+	});
+
+	/* ---------- recite ---------- */
+	const rc = $("recite");
+	let idx = 0;
+	let wake = null;
+	function buildBeads() {
+		const ns = "http://www.w3.org/2000/svg";
+		const svg = $("mala-svg");
+		const core = document.createElementNS(ns, "circle");
+		core.setAttribute("cx", "66"); core.setAttribute("cy", "66"); core.setAttribute("r", "47");
+		core.setAttribute("class", "core");
+		svg.appendChild(core);
+		for (let i = 0; i < MALA; i++) {
+			const a = (-90 + (i + 1.5) * (360 / (MALA + 3))) * Math.PI / 180; // three slots left free for the meru bead
+			const c = document.createElementNS(ns, "circle");
+			c.setAttribute("cx", (66 + 60 * Math.cos(a)).toFixed(2));
+			c.setAttribute("cy", (66 + 60 * Math.sin(a)).toFixed(2));
+			c.setAttribute("r", "1.75");
+			c.setAttribute("class", "bead");
+			svg.appendChild(c);
+		}
+		const meru = document.createElementNS(ns, "circle");
+		meru.setAttribute("cx", "66"); meru.setAttribute("cy", "6"); meru.setAttribute("r", "3.4");
+		meru.setAttribute("class", "meru");
+		svg.appendChild(meru);
+	}
+	buildBeads();
+	const beads = Array.from(document.querySelectorAll("#mala-svg .bead"));
+	function counter() {
+		const c = state.cnt[state.text];
+		if (c && typeof c.n === "number") return c;
+		return (state.cnt[state.text] = { n: 0, malas: 0 });
+	}
+	function renderCounter() {
+		const c = counter();
+		$("mala-n").textContent = c.n;
+		$("mala-rounds").textContent = c.malas + (c.malas === 1 ? " mala" : " malas");
+		beads.forEach((b, i) => b.classList.toggle("on", i < c.n));
+		$("mala").setAttribute("aria-label", "Count one repetition. " + c.n + " of 108, " + c.malas + " malas complete");
+	}
+	function renderRecite(dir) {
+		const t = DATA[state.text];
+		const list = flat[state.text];
+		idx = Math.max(0, Math.min(idx, list.length - 1));
+		const x = list[idx];
+		const card = $("rc-card");
+		const draw = () => {
+			const n = x.u.lines.length;
+			card.className = "rc-card" + (x.u.alt ? " alt" : "") + (n > 8 ? " vlong" : n > 4 ? " long" : "") + (t.hindi ? " rc-hindi" : "");
+			card.innerHTML = (x.u.label ? labelHtml(x.u.label, t.hindi) : "") + linesHtml(x.u.lines, t.hindi);
+			$("rc-stage").scrollTop = 0;
+		};
+		$("rc-sec").textContent = unitName(t, x.sec, x.u);
+		$("rc-pos").textContent = (idx + 1) + " of " + list.length;
+		$("rc-bar").style.width = ((idx + 1) / list.length * 100).toFixed(2) + "%";
+		$("rc-prev").disabled = idx === 0;
+		$("rc-next").disabled = idx === list.length - 1;
+		const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		if (!dir || reduce) { draw(); return; }
+		card.classList.add(dir > 0 ? "out-l" : "out-r");
+		setTimeout(() => {
+			draw();
+			card.classList.add(dir > 0 ? "out-r" : "out-l");
+			requestAnimationFrame(() => requestAnimationFrame(() => card.classList.remove("out-l", "out-r")));
+		}, 140);
+	}
+	function go(d) {
+		const list = flat[state.text];
+		const n = idx + d;
+		if (n < 0 || n >= list.length) return;
+		idx = n;
+		state.rec[state.text] = idx;
+		save();
+		renderRecite(d);
+	}
+	function openRecite() {
+		closeSheet();
+		const r = state.rec[state.text];
+		idx = typeof r === "number" ? r : currentIndex();
+		if (window.scrollY < 40 && typeof r !== "number") idx = 0;
+		rc.hidden = false;
+		root.classList.add("locked");
+		renderRecite(0);
+		renderCounter();
+		$("rc-stage").focus({ preventScroll: true });
+		try {
+			if (navigator.wakeLock) navigator.wakeLock.request("screen").then((w) => { wake = w; }).catch(() => {});
+		} catch (e) { /* not allowed */ }
+	}
+	function closeRecite() {
+		rc.hidden = true;
+		root.classList.remove("locked");
+		state.rec[state.text] = idx;
+		state.pos[state.text] = idx;
+		save();
+		scrollToUnit(state.text, idx, true);
+		try { if (wake) wake.release(); } catch (e) { /* ignore */ }
+		wake = null;
+		$("btn-recite").focus({ preventScroll: true });
+	}
+	$("btn-recite").addEventListener("click", openRecite);
+	$("rc-close").addEventListener("click", closeRecite);
+	$("rc-prev").addEventListener("click", () => go(-1));
+	$("rc-next").addEventListener("click", () => go(1));
+
+	function count() {
+		const c = counter();
+		c.n += 1;
+		if (c.n >= MALA) {
+			c.n = 0;
+			c.malas += 1;
+			$("mala").classList.add("done");
+			setTimeout(() => $("mala").classList.remove("done"), 700);
+		}
+		try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) { /* ignore */ }
+		renderCounter();
+		save();
+	}
+	$("mala").addEventListener("click", count);
+	let resetArmed = 0;
+	$("mala-reset").addEventListener("click", () => {
+		const b = $("mala-reset");
+		if (!resetArmed) {
+			b.textContent = "Tap again to reset";
+			b.classList.add("confirm");
+			resetArmed = setTimeout(() => { resetArmed = 0; b.textContent = "Reset"; b.classList.remove("confirm"); }, 3000);
+			return;
+		}
+		clearTimeout(resetArmed);
+		resetArmed = 0;
+		b.textContent = "Reset";
+		b.classList.remove("confirm");
+		state.cnt[state.text] = { n: 0, malas: 0 };
+		renderCounter();
+		save();
+	});
+
+	let tx = null;
+	const stage = $("rc-stage");
+	stage.addEventListener("touchstart", (e) => {
+		if (e.touches.length !== 1) { tx = null; return; }
+		tx = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+	}, { passive: true });
+	stage.addEventListener("touchend", (e) => {
+		if (!tx) return;
+		const t = e.changedTouches[0];
+		const dx = t.clientX - tx.x;
+		const dy = t.clientY - tx.y;
+		tx = null;
+		if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) go(dx < 0 ? 1 : -1);
+	}, { passive: true });
+
+	document.addEventListener("keydown", (e) => {
+		if (e.metaKey || e.ctrlKey || e.altKey) return;
+		if (e.key === "Escape") {
+			if (openSheet) { closeSheet(); return; }
+			if (!rc.hidden) { closeRecite(); }
+			return;
+		}
+		if (rc.hidden) return;
+		const onButton = e.target && e.target.tagName === "BUTTON";
+		if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === "PageDown") { e.preventDefault(); go(1); }
+		else if (e.key === "ArrowLeft" || e.key === "ArrowUp" || e.key === "PageUp") { e.preventDefault(); go(-1); }
+		else if ((e.key === " " || e.key === "Enter") && !onButton) { e.preventDefault(); count(); }
+	});
+
+	/* ---------- start ---------- */
+	showText(state.text, false);
+	const restore = () => scrollToUnit(state.text, state.pos[state.text], false);
+	if (state.pos[state.text]) {
+		restore();
+		if (document.fonts && document.fonts.ready) document.fonts.ready.then(restore).catch(() => {});
+	}
+	window.StotraReader = { flat, state, deva2iast }; // for tests
+})();
+</script>
+<!--/BODY-->
+</body>
+</html>
