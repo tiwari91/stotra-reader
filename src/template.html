@@ -36,7 +36,7 @@
 	color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-	:root:not([data-theme="light"]) {
+	:root:not([data-theme="light"]):not([data-theme="sepia"]) {
 		--paper: #0d111e;
 		--surface: #171c2d;
 		--ink: #eee3cd;
@@ -67,6 +67,23 @@
 	--bead: #394058;
 	color-scheme: dark;
 }
+:root[data-theme="sepia"] {
+	--paper: #f1e4c8;
+	--surface: #e8d7b4;
+	--ink: #3b2a17;
+	--ink-2: #6a4f33;
+	--accent: #8e2f14;
+	--accent-ink: #fbf1dc;
+	--wash: #e6cfa4;
+	--rule: #d8c29a;
+	--glow: rgba(160, 82, 30, 0.16);
+	--shadow: rgba(70, 40, 10, 0.16);
+	--scrim: rgba(40, 26, 12, 0.32);
+	--bead: #cdb388;
+	color-scheme: light;
+}
+:root { --lh: 1.92; --lh-lat: 1.66; --dev-size: clamp(1.25rem, 1rem + .9vw, 1.55rem); --lat-size: clamp(1.02rem, .92rem + .35vw, 1.14rem); }
+:root[data-spacing="relaxed"] { --lh: 2.2; --lh-lat: 1.85; }
 
 * { box-sizing: border-box; }
 html {
@@ -266,20 +283,20 @@ a { color: var(--accent); text-underline-offset: 3px; }
 .lat { font-family: var(--f-lat); }
 .ubody .dev .ln {
 	display: block;
-	font-size: calc(1.32rem * var(--scale));
-	line-height: 1.72;
+	font-size: calc(var(--dev-size) * var(--scale));
+	line-height: var(--lh);
 	padding-left: 1.1em;
 	text-indent: -1.1em;
 }
 .ubody .lat .ln {
 	display: block;
-	font-size: calc(1.08rem * var(--scale));
-	line-height: 1.62;
+	font-size: calc(var(--lat-size) * var(--scale));
+	line-height: var(--lh-lat);
 	padding-left: 1.1em;
 	text-indent: -1.1em;
 	overflow-wrap: anywhere;
 }
-.num { color: var(--accent); white-space: nowrap; }
+.num { color: var(--accent); white-space: nowrap; font-size: .8em; opacity: .85; margin-left: .15em; }
 .dnd { color: var(--ink-2); }
 .var { color: var(--ink-2); font-size: .82em; }
 .unit.alt .ubody { color: var(--ink-2); }
@@ -289,7 +306,7 @@ body[data-script="dev"] .lat { display: none; }
 body[data-script="lat"] .dev { display: none; }
 body[data-script="lat"] .label .lat { display: inline; }
 body[data-script="both"] .ubody .lat { margin-top: .3rem; color: var(--ink-2); }
-body[data-script="both"] .ubody .lat .ln { font-size: calc(1rem * var(--scale)); }
+body[data-script="both"] .ubody .lat .ln { font-size: calc(var(--lat-size) * .94 * var(--scale)); }
 body[data-script="both"] .label .lat { color: var(--ink-2); }
 
 .colophon {
@@ -561,6 +578,15 @@ body[data-script="both"] .rc-card .lat { margin-top: .9rem; color: var(--ink-2);
 	*, *::before, *::after { transition: none !important; animation: none !important; }
 	html { scroll-behavior: auto !important; }
 }
+
+@media print {
+	:root, :root[data-theme] { --paper: #fff; --ink: #000; --ink-2: #333; --accent: #7a2a08; --rule: #bbb; }
+	body { background: #fff; }
+	.tabs, .dock, .sheet, .recite, .scrim, .prog, button { display: none !important; }
+	.unit { break-inside: avoid; }
+	.ubody .dev .ln { font-size: 15pt; line-height: 1.8; }
+	.ubody .lat .ln { font-size: 11pt; }
+}
 </style>
 <!--/HEAD-->
 </head>
@@ -624,7 +650,15 @@ body[data-script="both"] .rc-card .lat { margin-top: .9rem; color: var(--ink-2);
 		<div class="seg" role="group" aria-labelledby="lbl-theme" id="seg-theme">
 			<button data-v="auto" id="opt-auto">Auto</button>
 			<button data-v="light" id="opt-light">Light</button>
-			<button data-v="dark" id="opt-dark">Dark</button>
+			<button data-v="sepia" id="opt-sepia">Sepia</button>
+			<button data-v="dark" id="opt-dark">Night</button>
+		</div>
+	</div>
+	<div class="field">
+		<span id="lbl-spacing">Line spacing</span>
+		<div class="seg" role="group" aria-labelledby="lbl-spacing" id="seg-spacing">
+			<button data-v="normal">Normal</button>
+			<button data-v="relaxed">Relaxed</button>
 		</div>
 	</div>
 </section>
@@ -742,7 +776,7 @@ const deva2iast = (function () {
 	const hostTheme = root.getAttribute("data-theme");
 	const $ = (id) => document.getElementById(id);
 
-	let state = { text: "vs", script: "dev", scale: 1, theme: "auto", pos: {}, rec: {}, cnt: {} };
+	let state = { text: "vs", script: "dev", scale: 1, theme: "auto", spacing: "normal", pos: {}, rec: {}, cnt: {} };
 	try {
 		const saved = JSON.parse(localStorage.getItem(KEY) || "null");
 		if (saved && typeof saved === "object") state = Object.assign(state, saved);
@@ -870,10 +904,14 @@ const deva2iast = (function () {
 		$("size-up").disabled = i >= SCALES.length - 1;
 	}
 	function applyTheme() {
-		if (state.theme === "light" || state.theme === "dark") root.setAttribute("data-theme", state.theme);
+		if ([ "light", "dark", "sepia" ].includes(state.theme)) root.setAttribute("data-theme", state.theme);
 		else if (hostTheme) root.setAttribute("data-theme", hostTheme);
 		else root.removeAttribute("data-theme");
 		document.querySelectorAll("#seg-theme button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.theme)));
+	}
+	function applySpacing() {
+		if (state.spacing === "relaxed") root.setAttribute("data-spacing", "relaxed"); else root.removeAttribute("data-spacing");
+		document.querySelectorAll("#seg-spacing button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === state.spacing)));
 	}
 	function withAnchor(fn) { // keep the verse at the top of the screen in place when layout changes
 		const k = currentIndex();
@@ -883,6 +921,11 @@ const deva2iast = (function () {
 	applyScript();
 	applyScale();
 	applyTheme();
+	applySpacing();
+	$("seg-spacing").addEventListener("click", (e) => {
+		const b = e.target.closest("button"); if (!b) return;
+		withAnchor(() => { state.spacing = b.dataset.v; applySpacing(); save(); });
+	});
 
 	$("btn-script").addEventListener("click", () => withAnchor(() => { state.script = NEXT_SCRIPT[state.script]; applyScript(); save(); }));
 	$("rc-script").addEventListener("click", () => { state.script = NEXT_SCRIPT[state.script]; applyScript(); renderRecite(0); save(); });

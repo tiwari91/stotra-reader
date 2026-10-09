@@ -172,5 +172,39 @@ if (!fs.existsSync(artPath)) {
 	ok(/:root\s*\{[^}]*--paper/.test(art) && /prefers-color-scheme: dark\)\s*\{\s*:root:not\(\[data-theme="light"\]\)/.test(art) && /:root\[data-theme="dark"\]/.test(art), "theme tokens in the required shape");
 }
 
+// ---------------------------------------------------------------- 6. browser
+console.log("Browser (390px phone)");
+{
+	ok(/data-theme="sepia"/.test(page) && /id="seg-spacing"/.test(page) && /@media print/.test(page), "sepia theme, line-spacing toggle and print styles present");
+	let pw = null;
+	try {
+		const { createRequire } = await import("node:module");
+		const req = createRequire(process.env.PLAYWRIGHT_FROM || path.join(process.env.HOME, "Cayuse/s2s-web-client/package.json"));
+		pw = req("playwright");
+	} catch (e) { console.log("  skip playwright not found (set PLAYWRIGHT_FROM to a package.json that has it)"); }
+	if (pw) {
+		const exe = process.env.CHROME_PATH || path.join(process.env.HOME, "Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell");
+		const browser = await pw.chromium.launch(fs.existsSync(exe) ? { executablePath: exe } : {});
+		const pg = await browser.newPage({ viewport: { width: 390, height: 844 } });
+		await pg.goto("file://" + path.join(ROOT, "index.html"));
+		const noHScroll = async () => pg.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+		ok(await noHScroll(), "no horizontal scroll at 390px (Vishnu Sahasranama)");
+		await pg.click("#btn-display");
+		await pg.click("#opt-sepia");
+		await pg.click('#seg-spacing [data-v="relaxed"]');
+		await pg.click("#size-up");
+		await pg.waitForTimeout(1500);
+		await pg.reload();
+		const st = await pg.evaluate(() => ({ theme: document.documentElement.dataset.theme, sp: document.documentElement.dataset.spacing, sc: getComputedStyle(document.documentElement).getPropertyValue("--scale").trim() }));
+		ok(st.theme === "sepia" && st.sp === "relaxed" && Number(st.sc) > 1, "theme, line spacing and text size persist across reload");
+		ok(await noHScroll(), "no horizontal scroll at 390px with larger relaxed text");
+		await pg.click("#btn-recite");
+		ok(await pg.isVisible("#recite"), "reading (recite) mode opens");
+		await pg.click("#rc-close");
+		ok(!(await pg.isVisible("#recite")), "reading (recite) mode closes");
+		await browser.close();
+	}
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);
