@@ -305,6 +305,7 @@ button.gut:hover { text-decoration: underline; text-underline-offset: 3px; }
 .find-res .r-line { font-family: var(--f-sa); font-size: 1.05rem; overflow-wrap: anywhere; }
 .find-res .r-line.lat { font-family: var(--f-lat); }
 .find-res mark { background: var(--wash); color: inherit; border-radius: 3px; padding: 0 1px; }
+html.locked .toast { bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 70px); }
 .toast {
 	position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
 	z-index: 80; background: var(--ink); color: var(--paper); padding: .6rem 1rem; border-radius: 999px;
@@ -1079,6 +1080,10 @@ const deva2iast = (function () {
 			posTimer = setTimeout(() => {
 				state.pos[state.text] = window.scrollY < 40 ? 0 : currentIndex();
 				save();
+				// a verse link in the address bar follows the reader, so a reload resumes here, not at the old link
+				if (location.hash) {
+					try { history.replaceState(null, "", window.scrollY < 40 ? location.pathname + location.search : "#" + refOf(state.text, state.pos[state.text])); } catch (e) { /* sandboxed */ }
+				}
 			}, 250);
 		});
 	}, { passive: true });
@@ -1357,7 +1362,12 @@ const deva2iast = (function () {
 		const k = list.findIndex((x) => x.sec.id === secId && x.u.n === n);
 		return k >= 0 ? { textId, k } : null;
 	}
-	function goToRef(r) {
+	function goToRef(r, again) {
+		if (again) { // second pass after fonts load: only re-scroll, never close recite or a sheet the reader opened
+			if (rc.hidden && !openSheet && r.textId === state.text && typeof r.k === "number") scrollToUnit(r.textId, r.k, false);
+			return;
+		}
+		if (typeof r.k === "number") state.rec[r.textId] = r.k;
 		if (!rc.hidden) closeRecite();
 		closeSheet();
 		if (r.textId !== state.text) { state.pos[state.text] = currentIndex(); showText(r.textId, false); }
@@ -1470,11 +1480,11 @@ const deva2iast = (function () {
 	if (linked && linked.textId !== state.text) state.text = linked.textId;
 	showText(state.text, false);
 	const restore = linked
-		? () => goToRef(linked)
+		? (again) => goToRef(linked, again)
 		: () => scrollToUnit(state.text, state.pos[state.text], false);
 	if (linked || state.pos[state.text]) {
-		restore();
-		if (document.fonts && document.fonts.ready) document.fonts.ready.then(restore).catch(() => {});
+		restore(false);
+		if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => restore(true)).catch(() => {});
 	}
 	window.StotraReader = { flat, state, deva2iast, parseRef, refOf }; // for tests
 })();

@@ -222,6 +222,11 @@ console.log("Browser (390px phone)");
 		await pg.waitForTimeout(300);
 		ok((await topVerse("vs")) === "88" && (await pg.evaluate(() => location.hash)) === "#vs/stotram/88", "go to 88 scrolls to śloka 88 and sets the link");
 		ok(await noHScroll(), "no horizontal scroll after find");
+		await pg.evaluate(() => window.StotraReader.flat.vs.find((x) => x.sec.id === "stotram" && x.u.n === 100).el.scrollIntoView({ block: "start" }));
+		await pg.waitForTimeout(1200);
+		await pg.reload();
+		await pg.waitForTimeout(500);
+		ok((await topVerse("vs")) === "100", "after a link, reading on and reloading resumes where the reader stopped (" + (await pg.evaluate(() => location.hash)) + ")");
 
 		// Recite: the screen stays on (asked again after the page comes back), beads vibrate
 		const wp = await browser.newPage({ viewport: { width: 390, height: 844 } });
