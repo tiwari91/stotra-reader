@@ -11,6 +11,7 @@ writes:
 
 Usage: python3 tools/build.py
 """
+import hashlib
 import html
 import json
 import os
@@ -203,6 +204,11 @@ def build():
 	body, tail = rest.split("<!--/BODY-->", 1)
 	head_inner = head.split("<!--HEAD-->", 1)[1].split("<!--/HEAD-->", 1)[0]
 	open(os.path.join(ROOT, "index.html"), "w", encoding="utf-8").write(page)
+
+	# Service worker: the cache name carries a hash of the page, so each build replaces the offline copy.
+	version = hashlib.sha256(page.encode()).hexdigest()[:12]
+	sw = open(os.path.join(ROOT, "src", "sw.js"), encoding="utf-8").read().replace("__VERSION__", version)
+	open(os.path.join(ROOT, "sw.js"), "w", encoding="utf-8").write(sw)
 
 	# Artifact: no doctype/html/head/body, title first, viewport meta supplied by the host.
 	head_art = re.sub(r"\s*<meta[^>]*>", "", head_inner)

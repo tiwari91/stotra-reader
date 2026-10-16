@@ -202,6 +202,32 @@ console.log("Browser (390px phone)");
 		ok(await pg.isVisible("#recite"), "reading (recite) mode opens");
 		await pg.click("#rc-close");
 		ok(!(await pg.isVisible("#recite")), "reading (recite) mode closes");
+
+		// Offline: serve the folder over http://localhost, let the service worker install, then reload offline.
+		const http = await import("node:http");
+		const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".webmanifest": "application/manifest+json", ".png": "image/png" };
+		const srv = http.createServer((q, r) => {
+			let f = decodeURIComponent(new URL(q.url, "http://x").pathname);
+			if (f.endsWith("/")) f += "index.html";
+			const fp = path.join(ROOT, f);
+			if (!fp.startsWith(ROOT) || !fs.existsSync(fp)) { r.writeHead(404); r.end(); return; }
+			r.writeHead(200, { "content-type": TYPES[path.extname(fp)] || "application/octet-stream" });
+			r.end(fs.readFileSync(fp));
+		});
+		await new Promise((res) => srv.listen(0, "127.0.0.1", res));
+		const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+		const op = await ctx.newPage();
+		await op.goto("http://localhost:" + srv.address().port + "/", { waitUntil: "networkidle" });
+		await op.evaluate(() => navigator.serviceWorker.ready);
+		await op.waitForTimeout(1500);
+		await ctx.setOffline(true);
+		await op.reload({ waitUntil: "load" });
+		await op.evaluate(() => document.fonts.ready);
+		const off = await op.evaluate(() => ({ units: document.querySelectorAll("#text-vs .unit").length, font: [ ...document.fonts ].some((f) => /Tiro Devanagari Sanskrit/.test(f.family) && f.status === "loaded") }));
+		ok(off.units > 200, "page opens offline after the first visit (" + off.units + " verses)");
+		ok(off.font, "Devanagari web font available offline");
+		await ctx.close();
+		srv.close();
 		await browser.close();
 	}
 }

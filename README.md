@@ -5,7 +5,7 @@ A one-page reader for two devotional texts:
 - **Sri Vishnu Sahasranama Stotram** (Mahābhārata, Anuśāsana Parva 149): pūrvapīṭhikā (22 ślokas), pūrvanyāsa, dhyānam (7), the stotram (108), uttaranyāsa and phalaśruti (33), plus the additional and alternate concluding ślokas exactly as the source gives them.
 - **Hanuman Chalisa** (Tulasīdāsa): 2 opening dohās, 40 caupāīs, the closing dohā, and the āratī that the source prints after it.
 
-Open `index.html` in any browser, or serve the folder with GitHub Pages. Everything (text, styles, script) is inside that one file. Fonts come from Google Fonts and fall back to system Devanagari fonts when offline.
+Open `index.html` in any browser, or serve the folder with GitHub Pages. Everything (text, styles, script) is inside that one file. Fonts come from Google Fonts; the service worker keeps them for offline use, and system Devanagari fonts are the fallback.
 
 ## Features
 
@@ -15,6 +15,7 @@ Open `index.html` in any browser, or serve the folder with GitHub Pages. Everyth
 - Recite mode: one verse at a time with previous/next buttons, arrow keys, or swipe; a progress bar; and a 108-bead mala counter (tap or press Space). The counter and recite position are saved per text.
 - Section list and table of contents for jumping to the stotram, phalaśruti, chaupais and so on.
 - Saved state lives in `localStorage` and the page works without it.
+- Works offline and installs to the home screen: after the first visit a service worker (`sw.js`) keeps the page, icons and fonts on the device, so the texts open with no signal.
 
 ## Source text
 
@@ -36,7 +37,7 @@ IAST is generated in the page from the Devanagari by `deva2iast()` (between the 
 ## Building and checking
 
 ```sh
-python3 tools/build.py   # downloads sources/ on first run, writes index.html and build/artifact.html
+python3 tools/build.py   # downloads sources/ on first run, writes index.html, sw.js and build/artifact.html
 node tools/check.mjs     # verse counts, text fidelity, transliteration, artifact contract
 ```
 
