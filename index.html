@@ -267,7 +267,49 @@ a { color: var(--accent); text-underline-offset: 3px; }
 	font-weight: 500;
 	opacity: .9;
 }
+button.gut {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	font-family: inherit;
+	cursor: pointer;
+	align-self: start;
+	min-height: 32px;
+	margin: 0;
+	padding-inline: 0 2px;
+	border-radius: 6px;
+}
+button.gut:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ubody { min-width: 0; }
+.find { margin: 0 0 1rem; }
+.find input {
+	width: 100%;
+	min-height: 46px;
+	padding: .55rem .9rem;
+	border-radius: 12px;
+	border: 1px solid var(--rule);
+	background: var(--paper);
+	color: var(--ink);
+	font: inherit;
+	font-size: 1rem;
+}
+.find input::placeholder { color: var(--ink-2); opacity: 1; }
+.find-note { font-size: .82rem; color: var(--ink-2); margin: .5rem .2rem 0; }
+.find-res { list-style: none; margin: 0 0 1rem; padding: 0; }
+.find-res li + li { border-top: 1px solid var(--rule); }
+.find-res button {
+	appearance: none; border: 0; background: transparent; width: 100%; text-align: left;
+	display: grid; gap: .1rem; min-height: 52px; padding: .55rem .2rem; cursor: pointer;
+}
+.find-res .r-name { font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.find-res .r-line { font-family: var(--f-sa); font-size: 1.05rem; overflow-wrap: anywhere; }
+.find-res .r-line.lat { font-family: var(--f-lat); }
+.find-res mark { background: var(--wash); color: inherit; border-radius: 3px; padding: 0 1px; }
+.toast {
+	position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+	z-index: 80; background: var(--ink); color: var(--paper); padding: .6rem 1rem; border-radius: 999px;
+	font-size: .9rem; box-shadow: 0 8px 24px -8px var(--shadow); pointer-events: none; max-width: calc(100vw - 32px);
+}
 .label {
 	margin: 0 0 .25rem;
 	font-size: calc(.98rem * var(--scale));
@@ -455,7 +497,8 @@ body[data-script="both"] .label .lat { color: var(--ink-2); }
 		calc(env(safe-area-inset-bottom, 0px) + 14px)
 		max(16px, env(safe-area-inset-left, 0px));
 }
-.rc-top { display: grid; grid-template-columns: 46px minmax(0, 1fr) 46px; align-items: center; gap: .5rem; max-width: 46rem; width: 100%; margin: 0 auto; }
+.rc-right { display: flex; gap: 6px; }
+.rc-top { display: grid; grid-template-columns: 98px minmax(0, 1fr) 98px; align-items: center; gap: .5rem; max-width: 46rem; width: 100%; margin: 0 auto; }
 .icon-btn {
 	appearance: none;
 	width: 46px; height: 46px;
@@ -619,7 +662,7 @@ body[data-script="both"] .rc-card .lat { margin-top: .9rem; color: var(--ink-2);
 </main>
 
 <nav class="dock" aria-label="Reading controls">
-	<button class="dbtn" id="btn-sections" aria-label="Sections" title="Sections">
+	<button class="dbtn" id="btn-sections" aria-label="Find and sections" title="Find a verse, or go to a section">
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h9"/></svg>
 	</button>
 	<button class="dbtn script" id="btn-script" aria-label="Change script" title="Script: Devanagari, IAST, or both"></button>
@@ -633,6 +676,7 @@ body[data-script="both"] .rc-card .lat { margin-top: .9rem; color: var(--ink-2);
 </nav>
 
 <div class="scrim" id="scrim" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <section class="sheet" id="sheet-display" role="dialog" aria-modal="true" aria-labelledby="sd-title" hidden>
 	<div class="grab"></div>
@@ -673,7 +717,12 @@ body[data-script="both"] .rc-card .lat { margin-top: .9rem; color: var(--ink-2);
 
 <section class="sheet" id="sheet-sections" role="dialog" aria-modal="true" aria-labelledby="ss-title" hidden>
 	<div class="grab"></div>
-	<h3 id="ss-title">Sections</h3>
+	<h3 id="ss-title">Find and go to</h3>
+	<form class="find" id="find" role="search" autocomplete="off">
+		<input id="find-q" type="search" enterkeyhint="search" placeholder="A name, a word, or a verse number" aria-label="Find a name, a word, or a verse number" aria-describedby="find-note">
+		<p class="find-note" id="find-note" aria-live="polite"></p>
+	</form>
+	<ul class="find-res" id="find-res"></ul>
 	<ul class="sec-list" id="sec-list"></ul>
 </section>
 
@@ -686,7 +735,12 @@ body[data-script="both"] .rc-card .lat { margin-top: .9rem; color: var(--ink-2);
 			<div class="rc-sec" id="rc-sec"></div>
 			<div class="rc-pos" id="rc-pos"></div>
 		</div>
-		<button class="icon-btn sc" id="rc-script" aria-label="Change script"></button>
+		<div class="rc-right">
+			<button class="icon-btn" id="rc-share" aria-label="Share a link to this verse" title="Share a link to this verse">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M6 12v6.5A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V12"/></svg>
+			</button>
+			<button class="icon-btn sc" id="rc-script" aria-label="Change script"></button>
+		</div>
 	</div>
 	<div class="rc-bar" aria-hidden="true"><i id="rc-bar"></i></div>
 	<div class="rc-stage" id="rc-stage" tabindex="-1">
@@ -852,7 +906,7 @@ const deva2iast = (function () {
 			+ "<h1 lang=\"" + lang + "\">" + esc(t.dev) + "</h1>"
 			+ "<p class=\"h-lat\">" + esc(t.lat) + "</p><ol class=\"toc\">";
 		t.sections.forEach((sec) => {
-			h += "<li><a href=\"#" + t.id + "-" + sec.id + "\" data-jump=\"" + sec.id + "\"><span class=\"c-name\">"
+			h += "<li><a href=\"#" + t.id + "/" + sec.id + "\" data-jump=\"" + sec.id + "\"><span class=\"c-name\">"
 				+ (sec.dev ? "<span class=\"c-dev\" lang=\"" + lang + "\">" + esc(sec.dev) + "</span>" : "<span class=\"c-dev c-latname\">" + esc(sec.lat) + "</span>")
 				+ "<span class=\"c-gloss\">" + esc(sec.dev ? secLat(sec, t.hindi) + " · " + sec.gloss : sec.gloss) + "</span></span>"
 				+ "<span class=\"c-count\">" + esc(secCount(t, sec)) + "</span></a></li>";
@@ -867,7 +921,10 @@ const deva2iast = (function () {
 			sec.units.forEach((u) => {
 				const id = t.id + "-u" + k;
 				h += "<article class=\"unit" + (u.alt ? " alt" : "") + "\" id=\"" + id + "\" data-k=\"" + k + "\">"
-					+ "<div class=\"gut\" aria-hidden=\"true\">" + (u.n || "") + "</div><div class=\"ubody\">"
+					+ (u.n
+						? "<button class=\"gut\" data-share=\"" + k + "\" aria-label=\"Share a link to " + esc(unitName(t, sec, u)) + "\" title=\"Share a link to this verse\">" + u.n + "</button>"
+						: "<div class=\"gut\" aria-hidden=\"true\"></div>")
+					+ "<div class=\"ubody\">"
 					+ (u.label ? labelHtml(u.label, t.hindi) : "")
 					+ linesHtml(u.lines, t.hindi) + "</div></article>";
 				list.push({ sec, u, id });
@@ -1016,6 +1073,7 @@ const deva2iast = (function () {
 		e.preventDefault();
 		const head = document.getElementById(state.text + "-" + a.dataset.jump);
 		if (head) head.scrollIntoView({ block: "start" });
+		try { history.replaceState(null, "", "#" + state.text + "/" + a.dataset.jump); } catch (err) { /* sandboxed */ }
 	});
 
 	/* ---------- sheets ---------- */
@@ -1039,7 +1097,13 @@ const deva2iast = (function () {
 	}
 	$("scrim").addEventListener("click", closeSheet);
 	$("btn-display").addEventListener("click", () => showSheet("sheet-display"));
-	$("btn-sections").addEventListener("click", () => showSheet("sheet-sections"));
+	$("btn-sections").addEventListener("click", () => {
+		$("find-q").value = "";
+		$("find-res").innerHTML = "";
+		$("find-note").textContent = "";
+		$("sec-list").hidden = false;
+		showSheet("sheet-sections");
+	});
 	function renderSectionList() {
 		const t = DATA[state.text];
 		const lang = t.hindi ? "hi" : "sa";
@@ -1220,14 +1284,147 @@ const deva2iast = (function () {
 		else if ((e.key === " " || e.key === "Enter") && !onButton) { e.preventDefault(); count(); }
 	});
 
+	/* ---------- links to a verse ----------
+	   #vs/stotram/88, #hc/chaupai/36, #vs/phala (a section), #vs/88 (stotram), #hc/36 (caupāī). */
+	function refOf(textId, k) {
+		const x = flat[textId][k];
+		return textId + "/" + (x.u.n ? x.sec.id + "/" + x.u.n : "u" + k);
+	}
+	function parseRef(hash) {
+		const m = /^#?(vs|hc)(?:\/([a-z-]+|u\d+|\d+))?(?:\/(\d+))?$/.exec(decodeURIComponent(hash || ""));
+		if (!m || !DATA[m[1]]) return null;
+		const textId = m[1];
+		const list = flat[textId];
+		let secId = m[2] || null;
+		let n = m[3] ? Number(m[3]) : null;
+		if (secId && /^u\d+$/.test(secId)) { const k = Number(secId.slice(1)); return k < list.length ? { textId, k } : null; }
+		if (secId && /^\d+$/.test(secId)) { n = Number(secId); secId = textId === "vs" ? "stotram" : "chaupai"; }
+		if (!secId) return { textId, k: null };
+		if (!DATA[textId].sections.some((x) => x.id === secId)) return null;
+		if (n === null) return { textId, secId };
+		const k = list.findIndex((x) => x.sec.id === secId && x.u.n === n);
+		return k >= 0 ? { textId, k } : null;
+	}
+	function goToRef(r) {
+		if (!rc.hidden) closeRecite();
+		closeSheet();
+		if (r.textId !== state.text) { state.pos[state.text] = currentIndex(); showText(r.textId, false); }
+		if (r.secId) { const head = document.getElementById(r.textId + "-" + r.secId); if (head) head.scrollIntoView({ block: "start" }); }
+		else if (r.k === null) window.scrollTo(0, 0);
+		else scrollToUnit(r.textId, r.k, true);
+	}
+	function linkFor(textId, k) { return location.href.split("#")[0] + "#" + refOf(textId, k); }
+	let toastTimer = 0;
+	function toast(msg) {
+		const el = $("toast");
+		el.textContent = msg;
+		el.hidden = false;
+		clearTimeout(toastTimer);
+		toastTimer = setTimeout(() => { el.hidden = true; }, 2200);
+	}
+	function share(textId, k) {
+		const t = DATA[textId];
+		const x = flat[textId][k];
+		const url = linkFor(textId, k);
+		const title = t.short + " · " + unitName(t, x.sec, x.u);
+		try { history.replaceState(null, "", "#" + refOf(textId, k)); } catch (e) { /* sandboxed */ }
+		if (navigator.share && matchMedia("(hover: none)").matches) {
+			navigator.share({ title, url }).catch(() => {});
+			return;
+		}
+		const done = () => toast("Link copied");
+		try {
+			navigator.clipboard.writeText(url).then(done, () => toast("Link is in the address bar"));
+		} catch (e) { toast("Link is in the address bar"); }
+	}
+	document.addEventListener("click", (e) => {
+		const b = e.target.closest("[data-share]");
+		if (b) share(state.text, Number(b.dataset.share));
+	});
+	$("rc-share").addEventListener("click", () => share(state.text, idx));
+	window.addEventListener("hashchange", () => { const r = parseRef(location.hash); if (r) goToRef(r); });
+
+	/* ---------- find ---------- */
+	// Fold IAST and everyday spellings together: "vishnu", "viṣṇu" and "visnu" all match.
+	const fold = (s) => s.normalize("NFD").replace(/[\u0300-\u036f\u02bc\u2019']/g, "").toLowerCase()
+		.replace(/sh/g, "s").replace(/ch/g, "c").replace(/ri/g, "r").replace(/w/g, "v")
+		.replace(/aa/g, "a").replace(/ee|ii/g, "i").replace(/oo|uu/g, "u").replace(/[^a-z\u0900-\u097f0-9 ]+/g, " ").replace(/\s+/g, " ");
+	const index = {};
+	function indexFor(textId) {
+		if (index[textId]) return index[textId];
+		const t = DATA[textId];
+		return (index[textId] = flat[textId].map((x) => x.u.lines.map((l) => {
+			const lat = deva2iast(l, t.hindi);
+			return { dev: l, lat, f: fold(lat), fs: fold(lat).replace(/ /g, "") };
+		})));
+	}
+	function hl(text, q) {
+		const i = text.indexOf(q);
+		return i < 0 ? esc(text) : esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>" + esc(text.slice(i + q.length));
+	}
+	function runFind() {
+		const raw = $("find-q").value.trim();
+		const res = $("find-res");
+		const note = $("find-note");
+		const t = DATA[state.text];
+		$("sec-list").hidden = !!raw;
+		if (!raw) { res.innerHTML = ""; note.textContent = ""; return; }
+		if (/^[0-9०-९]+$/.test(raw)) {
+			const n = Number(raw.replace(/[०-९]/g, (d) => "०१२३४५६७८९".indexOf(d)));
+			const secId = t.hindi ? "chaupai" : "stotram";
+			const k = flat[state.text].findIndex((x) => x.sec.id === secId && x.u.n === n);
+			if (k < 0) { res.innerHTML = ""; note.textContent = t.hindi ? "The Chalisa has caupāīs 1 to 40." : "The stotram has ślokas 1 to 108."; return; }
+			note.textContent = "Press Enter or tap to go.";
+			res.innerHTML = item(k, flat[state.text][k].u.lines[0], false, "");
+			return;
+		}
+		const isDev = /[\u0900-\u097f]/.test(raw);
+		const q = isDev ? raw : fold(raw).trim();
+		if (q.length < 2) { res.innerHTML = ""; note.textContent = ""; return; }
+		// names change their ending with case and sandhi (nārāyaṇa, nārāyaṇo): let a final -a match any ending
+		const qs = q.replace(/ /g, "").replace(/(.{4,})a$/, "$1");
+		const hits = [];
+		indexFor(state.text).forEach((lines, k) => {
+			for (const L of lines) {
+				if (isDev ? L.dev.includes(q) : (L.f.includes(q) || L.fs.includes(qs))) { hits.push([ k, L ]); break; }
+			}
+		});
+		note.textContent = hits.length ? hits.length + (hits.length === 1 ? " verse" : " verses") + (hits.length > 30 ? ", showing the first 30" : "") : "Nothing found. Try another spelling, or Devanagari.";
+		const showLat = state.script === "lat" || (!isDev && state.script === "both");
+		res.innerHTML = hits.slice(0, 30).map(([ k, L ]) => item(k, showLat ? L.lat : L.dev, showLat, isDev ? q : "")).join("");
+	}
+	function item(k, line, lat, q) {
+		const t = DATA[state.text];
+		const x = flat[state.text][k];
+		return "<li><button data-go=\"" + k + "\"><span class=\"r-name\">" + esc(unitName(t, x.sec, x.u)) + "</span>"
+			+ "<span class=\"r-line" + (lat ? " lat" : "") + "\" lang=\"" + (t.hindi ? "hi" : "sa") + (lat ? "-Latn" : "") + "\">" + (q ? hl(line, q) : esc(line)) + "</span></button></li>";
+	}
+	$("find-q").addEventListener("input", runFind);
+	$("find").addEventListener("submit", (e) => {
+		e.preventDefault();
+		const first = $("find-res").querySelector("[data-go]");
+		if (first) first.click();
+	});
+	$("find-res").addEventListener("click", (e) => {
+		const b = e.target.closest("[data-go]"); if (!b) return;
+		const k = Number(b.dataset.go);
+		closeSheet();
+		scrollToUnit(state.text, k, true);
+		try { history.replaceState(null, "", "#" + refOf(state.text, k)); } catch (err) { /* sandboxed */ }
+	});
+
 	/* ---------- start ---------- */
+	const linked = parseRef(location.hash);
+	if (linked && linked.textId !== state.text) state.text = linked.textId;
 	showText(state.text, false);
-	const restore = () => scrollToUnit(state.text, state.pos[state.text], false);
-	if (state.pos[state.text]) {
+	const restore = linked
+		? () => goToRef(linked)
+		: () => scrollToUnit(state.text, state.pos[state.text], false);
+	if (linked || state.pos[state.text]) {
 		restore();
 		if (document.fonts && document.fonts.ready) document.fonts.ready.then(restore).catch(() => {});
 	}
-	window.StotraReader = { flat, state, deva2iast }; // for tests
+	window.StotraReader = { flat, state, deva2iast, parseRef, refOf }; // for tests
 })();
 </script>
 <!--/BODY-->

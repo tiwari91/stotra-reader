@@ -1,7 +1,7 @@
 /* Stotra Reader service worker: keeps the page, icons and fonts on the device so the
    texts open with no signal. The page is network-first (so updates arrive), fonts are
    cache-first, and the font CSS is served from cache while it refreshes. */
-const VERSION = "b14ae8e2b970";
+const VERSION = "15e86018b0c7";
 const CACHE = "stotra-" + VERSION;
 const FONTS = "stotra-fonts";
 const SHELL = [ "./", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png" ];

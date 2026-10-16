@@ -203,6 +203,26 @@ console.log("Browser (390px phone)");
 		await pg.click("#rc-close");
 		ok(!(await pg.isVisible("#recite")), "reading (recite) mode closes");
 
+		// Links to a verse, find, and go to a number
+		const topVerse = (id) => pg.evaluate((id) => {
+			const u = [ ...document.querySelectorAll("#text-" + id + " .unit") ].find((el) => el.getBoundingClientRect().bottom > 90);
+			return u ? u.querySelector(".gut").textContent : null;
+		}, id);
+		await pg.goto("file://" + path.join(ROOT, "index.html") + "#hc/chaupai/36");
+		await pg.waitForTimeout(300);
+		ok(!(await pg.isHidden("#text-hc")) && (await topVerse("hc")) === "36", "a #hc/chaupai/36 link opens the Chalisa at caupāī 36");
+		await pg.click("#tab-vs");
+		await pg.click("#btn-sections");
+		await pg.fill("#find-q", "vishnu");
+		ok((await pg.locator("#find-res [data-go]").count()) > 5, "find matches everyday spelling (vishnu)");
+		await pg.fill("#find-q", "narayana");
+		ok(/१०८/.test(await pg.textContent("#find-res")), "find narayana reaches stotram 108 (nārāyaṇo)");
+		await pg.fill("#find-q", "88");
+		await pg.press("#find-q", "Enter");
+		await pg.waitForTimeout(300);
+		ok((await topVerse("vs")) === "88" && (await pg.evaluate(() => location.hash)) === "#vs/stotram/88", "go to 88 scrolls to śloka 88 and sets the link");
+		ok(await noHScroll(), "no horizontal scroll after find");
+
 		// Offline: serve the folder over http://localhost, let the service worker install, then reload offline.
 		const http = await import("node:http");
 		const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".webmanifest": "application/manifest+json", ".png": "image/png" };
