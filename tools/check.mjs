@@ -223,6 +223,27 @@ console.log("Browser (390px phone)");
 		ok((await topVerse("vs")) === "88" && (await pg.evaluate(() => location.hash)) === "#vs/stotram/88", "go to 88 scrolls to śloka 88 and sets the link");
 		ok(await noHScroll(), "no horizontal scroll after find");
 
+		// Recite: the screen stays on (asked again after the page comes back), beads vibrate
+		const wp = await browser.newPage({ viewport: { width: 390, height: 844 } });
+		await wp.addInitScript(() => {
+			window.__wl = 0; window.__buzz = [];
+			Object.defineProperty(navigator, "wakeLock", { value: { request: () => { window.__wl++; const s = new EventTarget(); s.release = () => { s.dispatchEvent(new Event("release")); return Promise.resolve(); }; window.__s = s; return Promise.resolve(s); } } });
+			navigator.vibrate = (p) => { window.__buzz.push(p); return true; };
+		});
+		await wp.goto("file://" + path.join(ROOT, "index.html"));
+		await wp.click("#btn-recite");
+		await wp.waitForTimeout(100);
+		await wp.evaluate(() => { window.__s.release(); document.dispatchEvent(new Event("visibilitychange")); });
+		await wp.waitForTimeout(100);
+		ok((await wp.evaluate(() => window.__wl)) === 2, "recite keeps the screen on, and asks again after the lock is dropped");
+		await wp.evaluate(() => { const c = window.StotraReader.state.cnt; c[window.StotraReader.state.text] = { n: 106, malas: 0 }; });
+		await wp.click("#mala");
+		await wp.click("#mala");
+		const buzz = await wp.evaluate(() => window.__buzz);
+		ok(buzz[0] === 15 && Array.isArray(buzz[1]) && /1 mala\b/.test(await wp.textContent("#mala-rounds")), "bead tap vibrates, a full mala gives a longer pattern and counts a round");
+		await wp.keyboard.press("Escape");
+		await wp.close();
+
 		// Offline: serve the folder over http://localhost, let the service worker install, then reload offline.
 		const http = await import("node:http");
 		const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".webmanifest": "application/manifest+json", ".png": "image/png" };

@@ -713,6 +713,14 @@ body[data-script="both"] .rc-card .lat { margin-top: .9rem; color: var(--ink-2);
 			<button data-v="relaxed">Relaxed</button>
 		</div>
 	</div>
+	<div class="field">
+		<span id="lbl-awake">While reciting</span>
+		<div class="seg" role="group" aria-labelledby="lbl-awake" id="seg-awake">
+			<button data-v="on" aria-describedby="awake-note">Keep screen on</button>
+			<button data-v="off">Let it sleep</button>
+		</div>
+		<p class="find-note" id="awake-note">Mala beads vibrate on phones that support it; a full mala gives a longer pulse.</p>
+	</div>
 </section>
 
 <section class="sheet" id="sheet-sections" role="dialog" aria-modal="true" aria-labelledby="ss-title" hidden>
@@ -983,6 +991,14 @@ const deva2iast = (function () {
 		fn();
 		requestAnimationFrame(() => scrollToUnit(state.text, k, false));
 	}
+	function applyAwake() {
+		document.querySelectorAll("#seg-awake button").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.v === "on") === (state.awake !== false))));
+	}
+	$("seg-awake").addEventListener("click", (e) => {
+		const b = e.target.closest("button"); if (!b) return;
+		state.awake = b.dataset.v === "on"; applyAwake(); save();
+	});
+	applyAwake();
 	applyScript();
 	applyScale();
 	applyTheme();
@@ -1038,7 +1054,7 @@ const deva2iast = (function () {
 	}
 	function showText(id, restore) {
 		state.text = id;
-		document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.text === id)));
+		document.querySelectorAll(".tab").forEach((b) => { b.setAttribute("aria-selected", String(b.dataset.text === id)); b.tabIndex = b.dataset.text === id ? 0 : -1; });
 		document.querySelectorAll(".text").forEach((s) => { s.hidden = s.dataset.id !== id; });
 		renderSectionList();
 		if (restore) scrollToUnit(id, state.pos[id], false);
@@ -1203,10 +1219,25 @@ const deva2iast = (function () {
 		renderRecite(0);
 		renderCounter();
 		$("rc-stage").focus({ preventScroll: true });
+		keepAwake();
+	}
+	/* Keep the screen on while reciting. The browser drops the lock whenever the page is hidden,
+	   so ask again when it comes back. */
+	function keepAwake() {
+		if (rc.hidden || state.awake === false || wake || !navigator.wakeLock) return;
 		try {
-			if (navigator.wakeLock) navigator.wakeLock.request("screen").then((w) => { wake = w; }).catch(() => {});
+			navigator.wakeLock.request("screen").then((w) => {
+				wake = w;
+				w.addEventListener("release", () => { if (wake === w) wake = null; });
+				if (rc.hidden || state.awake === false) { w.release(); }
+			}).catch(() => {});
 		} catch (e) { /* not allowed */ }
 	}
+	function letSleep() {
+		try { if (wake) wake.release(); } catch (e) { /* ignore */ }
+		wake = null;
+	}
+	document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
 	function closeRecite() {
 		rc.hidden = true;
 		root.classList.remove("locked");
@@ -1214,8 +1245,7 @@ const deva2iast = (function () {
 		state.pos[state.text] = idx;
 		save();
 		scrollToUnit(state.text, idx, true);
-		try { if (wake) wake.release(); } catch (e) { /* ignore */ }
-		wake = null;
+		letSleep();
 		$("btn-recite").focus({ preventScroll: true });
 	}
 	$("btn-recite").addEventListener("click", openRecite);
@@ -1226,13 +1256,15 @@ const deva2iast = (function () {
 	function count() {
 		const c = counter();
 		c.n += 1;
+		let buzz = 15;
 		if (c.n >= MALA) {
 			c.n = 0;
 			c.malas += 1;
+			buzz = [ 60, 50, 60, 50, 120 ]; // a mala is complete: a distinct pattern you can feel without looking
 			$("mala").classList.add("done");
 			setTimeout(() => $("mala").classList.remove("done"), 700);
 		}
-		try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) { /* ignore */ }
+		try { if (navigator.vibrate) navigator.vibrate(buzz); } catch (e) { /* ignore */ }
 		renderCounter();
 		save();
 	}
@@ -1269,6 +1301,26 @@ const deva2iast = (function () {
 		tx = null;
 		if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) go(dx < 0 ? 1 : -1);
 	}, { passive: true });
+
+	/* Keep keyboard focus inside an open sheet or the recite screen. */
+	document.addEventListener("keydown", (e) => {
+		if (e.key !== "Tab") return;
+		const box = openSheet || (!rc.hidden ? rc : null);
+		if (!box) return;
+		const items = [ ...box.querySelectorAll("button, input, a[href], [tabindex]:not([tabindex='-1'])") ].filter((el) => !el.disabled && el.offsetParent !== null);
+		if (!items.length) return;
+		const first = items[0], last = items[items.length - 1];
+		if (!box.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+		else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+		else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+	});
+	/* Arrow keys move between the two text tabs. */
+	document.querySelector(".tabs").addEventListener("keydown", (e) => {
+		if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+		const tabs = [ ...document.querySelectorAll(".tab") ];
+		const next = tabs[(tabs.indexOf(document.activeElement) + 1) % tabs.length];
+		if (next) { e.preventDefault(); next.focus(); next.click(); }
+	});
 
 	document.addEventListener("keydown", (e) => {
 		if (e.metaKey || e.ctrlKey || e.altKey) return;

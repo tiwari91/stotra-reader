@@ -12,7 +12,7 @@ Open `index.html` in any browser, or serve the folder with GitHub Pages. Everyth
 - Switch between the two texts; the app remembers which one you were reading and where.
 - Devanagari, IAST, or both.
 - Text size from 85% to 160%. Light (saffron on ivory) and dark (night) themes that follow the system, with a manual override.
-- Recite mode: one verse at a time with previous/next buttons, arrow keys, or swipe; a progress bar; and a 108-bead mala counter (tap or press Space). The counter and recite position are saved per text.
+- Recite mode: one verse at a time with previous/next buttons, arrow keys, or swipe; a progress bar; and a 108-bead mala counter (tap or press Space). The counter and recite position are saved per text. Recite mode keeps the screen on (it asks again after you switch apps; you can turn this off), and each bead gives a short vibration, with a longer pattern when a mala completes (Android; iOS browsers do not vibrate).
 - Section list and table of contents for jumping to the stotram, phalaśruti, chaupais and so on.
 - Find: type a name or word in everyday spelling (vishnu, krishna) or Devanagari, or a verse number to go straight to that śloka or caupāī.
 - Links to a verse: tap a verse number (or the share button in recite mode) to share or copy a link such as `#vs/stotram/88` or `#hc/chaupai/36`. Section links look like `#vs/phala`.
